@@ -20,3 +20,14 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[[bin]]
+name = "rpass"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false
+doc = false
+proc-macro = false
+harness = false
+required-features = []
