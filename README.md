@@ -7,7 +7,9 @@ figured I’d let Rust do it for me.
 
 `rpass LENGTH COUNT` generates `COUNT` passwords of length `LENGTH`,
 with a guaranteed six bits of entropy per letter. Note that the 
-options `-c`, `-n`, and/or `-y`  
+options `-c`, `-n`, and/or `-y` will populate these special
+characters in such a way as to reduce the entropy below six bits
+per glyph.
 
 `rpass --help` will show you more, of course.
 
@@ -47,9 +49,18 @@ print it to stdout, then safely zeroize the memory.
 
 Of course not, but it’s pretty good.
 
-## Will you support options to make outputs comply with local policy?
+## Will you support…
 
-`pwgen` does this, but I won’t. If you ask for a 64-bit password that’s
-exactly what you should get. Editing the output to ensure it complies
-with absurd rules like “no more than three consonants in a row” would
-reduce the strength of the password, not guarantee its strength.
+### … inclusion or exclusion of special characters?
+
+It's in there as of 1.2.
+
+### … seeding the RNG with the SHA-1 hash of a file?
+
+No.
+
+### … a cryptographically secure mode?
+
+The `-s` flag is included for compatibility but does nothing. 
+`rpass` is not specially hardened against attacks, but does use
+a cryptographically secure random number generator.
