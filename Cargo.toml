@@ -1,6 +1,6 @@
 [package]
 name = "rpass"
-version = "1.0.0"
+version = "1.2.0"
 edition = "2024"
 authors = ["Robert J. Hansen <rob@hansen.engineering>"]
 description = "Constructs cryptographically strong passwords using the HC128 stream cipher."
@@ -13,6 +13,7 @@ base64 = "0.22.1"
 rand_hc = "0.5.0"
 clap = { version = "4.5.60", features = ["derive"] }
 zeroize = "1.8.2"
+terminal_size = "0.4.3"
 
 [profile.release]
 opt-level = "z"
