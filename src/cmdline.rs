@@ -104,11 +104,7 @@ pub struct Args {
     )]
     pub(crate) multi_column: bool,
 
-    #[arg(
-        short = 'b',
-        long = "bugs",
-        help = "where to file bug reports"
-    )]
+    #[arg(short = 'b', long = "bugs", help = "where to file bug reports")]
     pub(crate) bugs: bool,
 
     pub(crate) length: Option<u16>,

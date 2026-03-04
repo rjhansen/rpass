@@ -44,6 +44,7 @@ fn main() {
 
     const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
     const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const NUMBERS: &str = "0123456789";
     const BUFFER_SIZE: usize = 1024;
     const ENGINE: GeneralPurpose =
         GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
@@ -96,6 +97,15 @@ fn main() {
             );
             remaining -= 1;
         }
+        if args.ensure_numbers {
+            password.push(
+                NUMBERS
+                    .chars()
+                    .nth(csprng.random_range(0..NUMBERS.chars().count()))
+                    .unwrap_or_else(|| '7'),
+            );
+            remaining -= 1;
+        }
         while remaining > 0 {
             let mut ch = match iterator.next() {
                 Some(x) => match filter(&x) {
@@ -116,7 +126,7 @@ fn main() {
             remaining -= 1;
         }
 
-        if args.multi_column && !args.one_column {
+        if args.multi_column {
             if remaining_in_this_line > 0 {
                 if index < (count - 1) {
                     print!("{} ", password);

@@ -5,10 +5,9 @@ figured I’d let Rust do it for me.
 
 ## Usage
 
-`rpass LENGTH COUNT` generates `COUNT` passwords of length LENGTH,
-with a guaranteed six bits of entropy per letter, each estimated
-to have `BITS` of entropy. By default it prints a single 128-bit
-password.
+`rpass LENGTH COUNT` generates `COUNT` passwords of length `LENGTH`,
+with a guaranteed six bits of entropy per letter. Note that the 
+options `-c`, `-n`, and/or `-y`  
 
 `rpass --help` will show you more, of course.
 
