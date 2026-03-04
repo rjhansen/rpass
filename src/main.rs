@@ -1,20 +1,20 @@
 pub mod cmdline;
 
-use terminal_size::{terminal_size, Height, Width};
 use base64::engine::general_purpose;
-use base64::{Engine as _, alphabet, engine::GeneralPurpose};
+use base64::{alphabet, engine::GeneralPurpose, Engine as _};
 use cmdline::parse_command_line;
 use rand::{Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::collections::HashSet;
+use terminal_size::{terminal_size, Height, Width};
 use zeroize::Zeroize;
 
 fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
-    let mut set = HashSet::<char>::new();
+    let mut remove_set = HashSet::<char>::new();
     let mut vowels = HashSet::<char>::new();
     let mut ambiguous = HashSet::<char>::new();
-    args.remove_set.chars().for_each(|x| {
-        _ = &set.insert(x);
+    args.remove.chars().for_each(|x| {
+        _ = &remove_set.insert(x);
     });
     "01aeiouyAEIOUY"
         .to_string()
@@ -35,7 +35,7 @@ fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
             || (args.no_numbers && ch.is_ascii_digit())
             || (args.no_vowels && vowels.contains(ch))
             || (args.no_ambiguous && ambiguous.contains(ch))
-            || set.contains(ch)
+            || remove_set.contains(ch)
     }
 }
 
@@ -44,7 +44,7 @@ fn main() {
 
     const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
     const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const BUFFER_SIZE: usize = 128;
+    const BUFFER_SIZE: usize = 1024;
     const ENGINE: GeneralPurpose =
         GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
 
@@ -58,8 +58,14 @@ fn main() {
     let mut count: u16 = args.count.unwrap_or_else(|| 1);
     let length: u16 = args.length.unwrap_or_else(|| 8);
     let line_width = match terminal_size() {
-        Some((Width(w), Height(_))) => if w < 160 { w } else { 160 },
-        None => 80
+        Some((Width(w), Height(_))) => {
+            if w < 160 {
+                w
+            } else {
+                160
+            }
+        }
+        None => 80,
     };
     let words_per_line = ((line_width as f32 / (length + 1) as f32).ceil() as u16) - 2;
     let mut remaining_in_this_line = words_per_line;
@@ -73,29 +79,29 @@ fn main() {
         let mut password = "".to_string();
 
         if args.ensure_symbols {
-            password.push(SYMBOLS
-                .chars()
-                .nth(csprng
-                    .random_range(0..SYMBOLS.chars().count()))
-                .unwrap_or_else(|| '+'));
+            password.push(
+                SYMBOLS
+                    .chars()
+                    .nth(csprng.random_range(0..SYMBOLS.chars().count()))
+                    .unwrap_or_else(|| '+'),
+            );
             remaining -= 1;
         }
         if args.ensure_capitals {
-            password.push(CAPITALS
-                .chars()
-                .nth(csprng
-                    .random_range(0..CAPITALS.chars().count()))
-                .unwrap_or_else(|| 'A'));
+            password.push(
+                CAPITALS
+                    .chars()
+                    .nth(csprng.random_range(0..CAPITALS.chars().count()))
+                    .unwrap_or_else(|| 'A'),
+            );
             remaining -= 1;
         }
         while remaining > 0 {
             let mut ch = match iterator.next() {
-                Some(x) => {
-                    match filter(&x) {
-                        true => x,
-                        false => continue,
-                    }
-                }
+                Some(x) => match filter(&x) {
+                    true => x,
+                    false => continue,
+                },
                 None => {
                     pool.zeroize();
                     csprng.fill_bytes(&mut buf);

@@ -5,7 +5,8 @@ figured I’d let Rust do it for me.
 
 ## Usage
 
-`rpass -b BITS -c COUNT` generates `COUNT` passwords, each estimated
+`rpass LENGTH COUNT` generates `COUNT` passwords of length LENGTH,
+with a guaranteed six bits of entropy per letter, each estimated
 to have `BITS` of entropy. By default it prints a single 128-bit
 password.
 

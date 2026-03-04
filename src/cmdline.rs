@@ -8,7 +8,7 @@ use std::process::exit;
     about,
     name = "rpass",
     about = "Generates high-entropy passwords.",
-    long_about = "Constructs cryptographically strong passwords using the HC128 stream cipher.",
+    long_about = "Constructs cryptographically strong passwords using the HC128\nstream cipher.",
     help_template = "\
 {before-help}{name} {version}
 {about-with-newline}
@@ -18,43 +18,97 @@ use std::process::exit;
 "
 )]
 pub struct Args {
-    #[arg(short = 'c', long = "capitalize", help = "ensure one or more capital letters", default_value_t = false)]
+    #[arg(
+        short = 'c',
+        long = "capitalize",
+        help = "ensure one or more capital letters",
+        default_value_t = false
+    )]
     pub(crate) ensure_capitals: bool,
 
-    #[arg(short = 'A', long = "no-capitalize", help = "ensure no capital letters", default_value_t = false)]
+    #[arg(
+        short = 'A',
+        long = "no-capitalize",
+        help = "ensure no capital letters",
+        default_value_t = false
+    )]
     pub(crate) no_capitals: bool,
 
-    #[arg(short = 'n', long = "numerals", help = "ensure one or more numbers", default_value_t = false)]
+    #[arg(
+        short = 'n',
+        long = "numerals",
+        help = "ensure one or more numbers",
+        default_value_t = false
+    )]
     pub(crate) ensure_numbers: bool,
 
-    #[arg(short = '0', long = "no-numerals", help = "ensure no numbers", default_value_t = false)]
+    #[arg(
+        short = '0',
+        long = "no-numerals",
+        help = "ensure no numbers",
+        default_value_t = false
+    )]
     pub(crate) no_numbers: bool,
 
-    #[arg(short = 'y', long = "symbols", help = "ensure at least one special character", default_value_t = false)]
+    #[arg(
+        short = 'y',
+        long = "symbols",
+        help = "ensure at least one special character",
+        default_value_t = false
+    )]
     pub(crate) ensure_symbols: bool,
 
     #[arg(short = 'r', long = "remove-chars", help = "omit these characters", default_value_t = String::new())]
-    pub(crate) remove_set: String,
+    pub(crate) remove: String,
 
-    #[arg(short = 's', long = "secure", help = "use a cryptographic-strength RNG", default_value_t = true)]
+    #[arg(
+        short = 's',
+        long = "secure",
+        help = "use a cryptographic-strength RNG",
+        default_value_t = true
+    )]
     pub(crate) secure: bool,
 
-    #[arg(short = 'B', long = "ambiguous", help = "don't include ambiguous characters", default_value_t = false)]
+    #[arg(
+        short = 'B',
+        long = "ambiguous",
+        help = "don't include ambiguous characters",
+        default_value_t = false
+    )]
     pub(crate) no_ambiguous: bool,
 
-    #[arg(short = 'v', long = "no-vowels", help = "don't use any vowels", default_value_t = false)]
+    #[arg(
+        short = 'v',
+        long = "no-vowels",
+        help = "don't use any vowels",
+        default_value_t = false
+    )]
     pub(crate) no_vowels: bool,
 
     #[arg(long = "copyright", help = "show copyright notice")]
     pub(crate) copyright: bool,
 
-    #[arg(short = '1', long = "one-column", help = "display results in one column", default_value_t = false)]
+    #[arg(
+        short = '1',
+        long = "one-column",
+        help = "display results in one column",
+        default_value_t = false
+    )]
     pub(crate) one_column: bool,
 
-    #[arg(short = 'C', long = "multicolumn", help = "display results in multiple columns", default_value_t = true)]
+    #[arg(
+        short = 'C',
+        long = "multicolumn",
+        help = "display results in multiple columns",
+        default_value_t = true
+    )]
     pub(crate) multi_column: bool,
 
-    #[arg(short = 'b', long = "bugs", help = "show contact information for bug reports")]
+    #[arg(
+        short = 'b',
+        long = "bugs",
+        help = "where to file bug reports"
+    )]
     pub(crate) bugs: bool,
 
     pub(crate) length: Option<u16>,
