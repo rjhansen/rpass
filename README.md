@@ -1,5 +1,5 @@
 # rpass
-## _… because random passwords should’t be left to chance._
+## _… because random passwords shouldn’t be left to chance._
 
 ## Intended Audience
 
