@@ -9,53 +9,116 @@ use std::collections::HashSet;
 use terminal_size::{terminal_size, Height, Width};
 use zeroize::Zeroize;
 
-fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
-    let mut remove_set = HashSet::<char>::new();
-    let mut vowels = HashSet::<char>::new();
-    let mut ambiguous = HashSet::<char>::new();
-    args.remove.chars().for_each(|x| {
-        _ = &remove_set.insert(x);
-    });
-    "01aeiouyAEIOUY"
-        .to_string()
-        .chars()
-        .into_iter()
-        .for_each(|x| {
-            _ = vowels.insert(x);
-        });
-    "B8G6I1l0OQDS5Z2"
-        .to_string()
-        .chars()
-        .into_iter()
-        .for_each(|x| {
-            _ = ambiguous.insert(x);
-        });
-    move |ch: &char| -> bool {
-        !(args.no_capitals && ch.is_ascii_uppercase())
-            || (args.no_numbers && ch.is_ascii_digit())
-            || (args.no_vowels && vowels.contains(ch))
-            || (args.no_ambiguous && ambiguous.contains(ch))
-            || remove_set.contains(ch)
-    }
-}
 
 fn main() {
+    fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
+        let mut remove_set = HashSet::<char>::new();
+        let mut vowels = HashSet::<char>::new();
+        let mut ambiguous = HashSet::<char>::new();
+        args.remove.chars().for_each(|x| {
+            _ = &remove_set.insert(x);
+        });
+        "01aeiouyAEIOUY"
+            .to_string()
+            .chars()
+            .into_iter()
+            .for_each(|x| {
+                _ = vowels.insert(x);
+            });
+        "B8G6I1l0OQDS5Z2"
+            .to_string()
+            .chars()
+            .into_iter()
+            .for_each(|x| {
+                _ = ambiguous.insert(x);
+            });
+        move |ch: &char| -> bool {
+            !(args.no_capitals && ch.is_ascii_uppercase())
+                || (args.no_numbers && ch.is_ascii_digit())
+                || (args.no_vowels && vowels.contains(ch))
+                || (args.no_ambiguous && ambiguous.contains(ch))
+                || remove_set.contains(ch)
+        }
+    }
+
+    fn make_character_generator(filter: &impl Fn(&char) -> bool) -> impl FnMut() -> char {
+        const BUFFER_SIZE: usize = 8192;
+        const ENGINE: GeneralPurpose =
+            GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
+        let mut random_byte_buffer = [0u8; BUFFER_SIZE];
+        let mut random_char_buffer = Vec::<char>::new();
+        let mut random_char_index: usize = 0;
+        let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
+
+        move || -> char {
+            let mut ch: char;
+            loop {
+                if random_char_index >= random_char_buffer.len() {
+                    random_char_buffer.zeroize();
+                    random_char_index = 0;
+                    csprng.fill_bytes(&mut random_byte_buffer);
+                    ENGINE
+                        .encode(random_byte_buffer)
+                        .chars()
+                        .into_iter()
+                        .for_each(|x| random_char_buffer.push(x));
+                    random_byte_buffer.zeroize();
+                }
+                ch = random_char_buffer[random_char_index];
+                random_char_index += 1;
+                if filter(&ch) {
+                    break;
+                }
+            }
+            ch
+        }
+    }
+
+    fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) -> () {
+        const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+        let symbols_length = SYMBOLS.chars().count();
+        const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let capitals_length = CAPITALS.chars().count();
+        const NUMBERS: &str = "0123456789";
+        let numbers_length = NUMBERS.chars().count();
+
+        let ensure_symbols: bool = args.ensure_symbols;
+        let ensure_capitals: bool = args.ensure_capitals;
+        let ensure_numbers: bool = args.ensure_numbers;
+        let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
+
+        move |password: &mut String| -> () {
+            if ensure_symbols {
+                password.push(
+                    SYMBOLS
+                        .chars()
+                        .nth(csprng.random_range(0..symbols_length))
+                        .unwrap_or_else(|| '+'),
+                );
+            }
+            if ensure_capitals {
+                password.push(
+                    CAPITALS
+                        .chars()
+                        .nth(csprng.random_range(0..capitals_length))
+                        .unwrap_or_else(|| 'A'),
+                );
+            }
+            if ensure_numbers {
+                password.push(
+                    NUMBERS
+                        .chars()
+                        .nth(csprng.random_range(0..numbers_length))
+                        .unwrap_or_else(|| '7'),
+                );
+            }
+        }
+    }
+
     let args = parse_command_line();
-
-    const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-    const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const NUMBERS: &str = "0123456789";
-    const BUFFER_SIZE: usize = 1024;
-    const ENGINE: GeneralPurpose =
-        GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
-
-    let mut buf = [0u8; BUFFER_SIZE];
-    let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
-    csprng.fill_bytes(&mut buf);
-    let mut pool = ENGINE.encode(&buf);
-    buf.zeroize();
-    let mut iterator = pool.chars();
     let filter = make_filter(&args);
+    let mut generator = make_character_generator(&filter);
+    let mut satisfy_policies = make_satisfier(&args);
     let mut count: u16 = args.count.unwrap_or_else(|| 1);
     let length: u16 = args.length.unwrap_or_else(|| 8);
     let line_width = match terminal_size() {
@@ -76,54 +139,12 @@ fn main() {
     }
 
     for index in 0..count {
-        let mut remaining = length;
         let mut password = "".to_string();
-
-        if args.ensure_symbols {
-            password.push(
-                SYMBOLS
-                    .chars()
-                    .nth(csprng.random_range(0..SYMBOLS.chars().count()))
-                    .unwrap_or_else(|| '+'),
-            );
-            remaining -= 1;
-        }
-        if args.ensure_capitals {
-            password.push(
-                CAPITALS
-                    .chars()
-                    .nth(csprng.random_range(0..CAPITALS.chars().count()))
-                    .unwrap_or_else(|| 'A'),
-            );
-            remaining -= 1;
-        }
-        if args.ensure_numbers {
-            password.push(
-                NUMBERS
-                    .chars()
-                    .nth(csprng.random_range(0..NUMBERS.chars().count()))
-                    .unwrap_or_else(|| '7'),
-            );
-            remaining -= 1;
-        }
-        while remaining > 0 {
-            let mut ch = match iterator.next() {
-                Some(x) => match filter(&x) {
-                    true => x,
-                    false => continue,
-                },
-                None => {
-                    pool.zeroize();
-                    csprng.fill_bytes(&mut buf);
-                    pool = ENGINE.encode(&buf);
-                    buf.zeroize();
-                    iterator = pool.chars();
-                    continue;
-                }
-            };
+        satisfy_policies(&mut password);
+        for _ in 0..(length - (password.chars().count()) as u16) {
+            let mut ch = generator();
             password.push(ch);
             ch.zeroize();
-            remaining -= 1;
         }
 
         if args.multi_column {
@@ -143,6 +164,4 @@ fn main() {
         }
         password.zeroize();
     }
-    pool.zeroize();
-    buf.zeroize();
 }
