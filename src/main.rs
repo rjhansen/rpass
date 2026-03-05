@@ -1,12 +1,14 @@
 pub mod cmdline;
 
 use base64::engine::general_purpose;
-use base64::{Engine as _, alphabet, engine::GeneralPurpose};
+use base64::{alphabet, engine::GeneralPurpose, Engine as _};
 use cmdline::parse_command_line;
 use rand::{Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
+use std::cell::RefCell;
 use std::collections::HashSet;
-use terminal_size::{Height, Width, terminal_size};
+use std::rc::Rc;
+use terminal_size::{terminal_size, Height, Width};
 use zeroize::Zeroize;
 
 fn main() {
@@ -40,44 +42,69 @@ fn main() {
         }
     }
 
-    fn make_character_generator(filter: &impl Fn(&char) -> bool) -> impl FnMut() -> char {
+    fn make_character_generator(
+        filter: &impl Fn(&char) -> bool,
+    ) -> (impl FnMut() -> char, impl FnMut() -> ()) {
         const BUFFER_SIZE: usize = 12288;
         const ENGINE: GeneralPurpose =
             GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
-        let mut random_byte_buffer = [0u8; BUFFER_SIZE];
-        let mut random_char_buffer = Vec::<char>::new();
-        let mut random_char_index: usize = 0;
+        let random_byte_buffer = [0u8; BUFFER_SIZE];
+        let rbb_cell = Rc::new(RefCell::new(random_byte_buffer));
+        let rcb_cell = Rc::new(RefCell::new(Vec::<char>::new()));
+        let mut rcb_index: usize = 0;
         let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
 
-        move || -> char {
-            let mut ch: char;
-            loop {
-                if random_char_index >= random_char_buffer.len() {
-                    random_char_buffer.zeroize();
-                    random_char_index = 0;
-                    csprng.fill_bytes(&mut random_byte_buffer);
-                    ENGINE
-                        .encode(random_byte_buffer)
-                        .chars()
-                        .into_iter()
-                        .for_each(|x| random_char_buffer.push(x));
-                    random_byte_buffer.zeroize();
+        let rb1 = rbb_cell.clone();
+        let rb2 = rbb_cell.clone();
+        let rc1 = rcb_cell.clone();
+        let rc2 = rcb_cell.clone();
+
+        (
+            move || -> char {
+                let mut ch: char;
+                loop {
+                    let mut rbb = rb1.borrow_mut();
+                    let mut rcb = rc1.borrow_mut();
+                    if rcb_index >= rcb.len() {
+                        rbb.zeroize();
+                        rcb.zeroize();
+                        rcb.clear();
+                        rcb_index = 0;
+                        csprng.fill_bytes(&mut *rbb);
+                        ENGINE
+                            .encode(*rbb)
+                            .chars()
+                            .into_iter()
+                            .for_each(|x| rcb.push(x));
+                        rbb.zeroize();
+                    }
+                    ch = rcb[rcb_index];
+                    rcb_index += 1;
+                    if filter(&ch) {
+                        break;
+                    }
                 }
-                ch = random_char_buffer[random_char_index];
-                random_char_index += 1;
-                if filter(&ch) {
-                    break;
-                }
-            }
-            ch
-        }
+                ch
+            },
+            move || -> () {
+                let mut rbb = rb2.borrow_mut();
+                let mut rcb = rc2.borrow_mut();
+                rbb.zeroize();
+                rcb.zeroize();
+            },
+        )
     }
 
     fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) -> () {
+        // These are taken directly from pwgen.
         const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
         let symbols_length = SYMBOLS.chars().count();
+
+        // These are taken directly from pwgen.
         const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         let capitals_length = CAPITALS.chars().count();
+
+        // These are taken directly from pwgen.
         const NUMBERS: &str = "0123456789";
         let numbers_length = NUMBERS.chars().count();
 
@@ -114,22 +141,28 @@ fn main() {
         }
     }
 
+    fn get_terminal_width() -> u16 {
+        match terminal_size() {
+            Some((Width(w), Height(_))) => {
+                if w <= 7 {
+                    7
+                } else if w < 160 {
+                    w
+                } else {
+                    160
+                }
+            }
+            None => 80,
+        }
+    }
+
     let args = parse_command_line();
     let filter = make_filter(&args);
-    let mut generator = make_character_generator(&filter);
     let mut satisfy_policies = make_satisfier(&args);
-    let mut count: u16 = args.count.unwrap_or_else(|| 1);
-    let length: u16 = args.length.unwrap_or_else(|| 8);
-    let line_width = match terminal_size() {
-        Some((Width(w), Height(_))) => {
-            if w < 160 {
-                w
-            } else {
-                160
-            }
-        }
-        None => 80,
-    };
+    let (mut generator, mut finalizer) = make_character_generator(&filter);
+    let mut count = args.count.unwrap_or_else(|| 1);
+    let length = args.length.unwrap_or_else(|| 8);
+    let line_width = get_terminal_width();
     let words_per_line = ((line_width as f32 / (length + 1) as f32).ceil() as u16) - 2;
     let mut remaining_in_this_line = words_per_line;
 
@@ -163,4 +196,5 @@ fn main() {
         }
         password.zeroize();
     }
+    finalizer();
 }
