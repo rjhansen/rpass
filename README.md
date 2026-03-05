@@ -99,7 +99,8 @@ running entirely HC-128.
 
 We populate a fixed-size buffer with cryptographically secure pseudorandom
 noise, eight bits of entropy per byte. We then base64 the buffer into a UTF-8
-string where each glyph has six bits of entropy.
+string where each glyph has six bits of entropy. Upon generating the glyph
+buffer, the byte buffer is zeroized.
 
 Eight is 2³, while six is 2 * 3. By setting our buffer size to 12288 bytes
 (2¹² * 3) we can ensure the resulting base64 expansion is 16,384 glyphs of
@@ -117,8 +118,9 @@ another set of 16,384 and continue.
 Once the password is assembled it’s printed to `stdout`. Once printed, the password
 is zeroized so as to reduce the forensics traces left in memory.
 
-Once all passwords are written, the buffer and string of random glyphs are
-zeroized.
+Once all passwords are written, the byte buffer and string of random glyphs are
+zeroized. (The byte buffer was already zeroized; doing so on exit is just 
+belt-and-suspenders engineering.)
 
 ## License
 
