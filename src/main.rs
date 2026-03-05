@@ -1,14 +1,13 @@
 pub mod cmdline;
 
 use base64::engine::general_purpose;
-use base64::{alphabet, engine::GeneralPurpose, Engine as _};
+use base64::{Engine as _, alphabet, engine::GeneralPurpose};
 use cmdline::parse_command_line;
 use rand::{Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::collections::HashSet;
-use terminal_size::{terminal_size, Height, Width};
+use terminal_size::{Height, Width, terminal_size};
 use zeroize::Zeroize;
-
 
 fn main() {
     fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
@@ -42,7 +41,7 @@ fn main() {
     }
 
     fn make_character_generator(filter: &impl Fn(&char) -> bool) -> impl FnMut() -> char {
-        const BUFFER_SIZE: usize = 8192;
+        const BUFFER_SIZE: usize = 12288;
         const ENGINE: GeneralPurpose =
             GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
         let mut random_byte_buffer = [0u8; BUFFER_SIZE];
