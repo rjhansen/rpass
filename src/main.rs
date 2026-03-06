@@ -12,11 +12,18 @@ use zeroize::Zeroize;
 
 fn main() {
     let args = parse_command_line();
-    let (mut pwgen, mut pwfinal) = make_password_generator(&args);
-    let mut printer = make_printer(&args);
-    let count = get_count(&args);
 
-    for index in 0..count {
+    // The password generator closure uses some sensitive memory which
+    // must be safely zeroed on program exit, so whenever we create
+    // a generator closure we also create a finalizer for the data in
+    // that closure.
+    let (mut pwgen, mut pwfinal) = make_password_generator(&args);
+
+    // The printer closure encapsulates details such as terminal width,
+    // how many to print on a line, and so forth.
+    let mut printer = make_printer(&args);
+
+    for index in 0..get_count(&args) {
         let mut password = pwgen();
         printer(&password, index);
         password.zeroize();
