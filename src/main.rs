@@ -7,7 +7,6 @@ use character_generator::make_password_generator;
 use cmdline::get_count;
 use cmdline::parse_command_line;
 use printer::make_printer;
-use terminal::get_words_per_line;
 use zeroize::Zeroize;
 
 fn main() {
@@ -22,7 +21,7 @@ fn main() {
     // The printer closure encapsulates details such as terminal width,
     // how many to print on a line, and so forth.
     let mut printer = make_printer(&args);
-
+    
     for index in 0..get_count(&args) {
         let mut password = pwgen();
         printer(&password, index);

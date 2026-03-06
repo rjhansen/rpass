@@ -1,4 +1,5 @@
-use crate::{cmdline, get_words_per_line};
+use crate::terminal;
+use terminal::get_words_per_line;
 use clap::Parser;
 use std::process::exit;
 
@@ -156,10 +157,12 @@ fn sanity_checks(args: &mut Args) {
     }
 }
 
-pub fn get_count(args: &cmdline::Args) -> u16 {
+pub fn get_count(args: &Args) -> u16 {
     match args.count {
         None => match args.multi_column {
-            true => get_words_per_line(args) * 20,
+            true => {
+                (get_words_per_line(args) + 1) * 20
+            },
             false => 1,
         },
         Some(count) => count,
