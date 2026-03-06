@@ -1,7 +1,7 @@
 use crate::terminal;
-use terminal::get_words_per_line;
 use clap::Parser;
 use std::process::exit;
+use terminal::get_words_per_line;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -145,13 +145,13 @@ fn sanity_checks(args: &mut Args) {
         println!("Released under the Apache 2.0 license. Share and enjoy!");
         exit(0);
     }
-    let length = args.length.unwrap_or_else(|| 8);
-    let count = args.count.unwrap_or_else(|| 1);
-    if length < 6 || length > 43 {
+    let length = args.length.unwrap_or(8);
+    let count = args.count.unwrap_or(1);
+    if !(6..=43).contains(&length) {
         eprintln!("error: length must be in the range [6, 43].");
         exit(1);
     }
-    if count < 1 || count > 1000 {
+    if !(1..=1000).contains(&count) {
         eprintln!("error: count must be in range [1, 1000].");
         exit(1);
     }
@@ -160,9 +160,7 @@ fn sanity_checks(args: &mut Args) {
 pub fn get_count(args: &Args) -> u16 {
     match args.count {
         None => match args.multi_column {
-            true => {
-                (get_words_per_line(args) + 1) * 20
-            },
+            true => (get_words_per_line(args) + 1) * 20,
             false => 1,
         },
         Some(count) => count,

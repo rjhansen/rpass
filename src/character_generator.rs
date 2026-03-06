@@ -1,6 +1,6 @@
 use crate::cmdline;
-use base64::engine::{general_purpose, GeneralPurpose};
-use base64::{alphabet, Engine};
+use base64::engine::{GeneralPurpose, general_purpose};
+use base64::{Engine, alphabet};
 use rand::{Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::cell::RefCell;
@@ -8,12 +8,10 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use zeroize::Zeroize;
 
-pub fn make_password_generator(
-    args: &cmdline::Args,
-) -> (impl FnMut() -> String, impl FnMut() -> ()) {
-    let mut satisfy_policies = make_satisfier(&args);
-    let (mut generator, finalizer) = make_character_generator(&args);
-    let length = args.length.unwrap_or_else(|| 8);
+pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut() -> String, impl FnMut()) {
+    let mut satisfy_policies = make_satisfier(args);
+    let (mut generator, finalizer) = make_character_generator(args);
+    let length = args.length.unwrap_or(8);
 
     (
         move || -> String {
@@ -29,7 +27,7 @@ pub fn make_password_generator(
         finalizer,
     )
 }
-fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) -> () {
+fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
     // These are taken directly from pwgen.
     const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
     let symbols_length = SYMBOLS.chars().count();
@@ -53,7 +51,7 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) -> () {
                 SYMBOLS
                     .chars()
                     .nth(csprng.random_range(0..symbols_length))
-                    .unwrap_or_else(|| '+'),
+                    .unwrap_or('+'),
             );
         }
         if ensure_capitals {
@@ -61,7 +59,7 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) -> () {
                 CAPITALS
                     .chars()
                     .nth(csprng.random_range(0..capitals_length))
-                    .unwrap_or_else(|| 'A'),
+                    .unwrap_or('A'),
             );
         }
         if ensure_numbers {
@@ -69,7 +67,7 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) -> () {
                 NUMBERS
                     .chars()
                     .nth(csprng.random_range(0..numbers_length))
-                    .unwrap_or_else(|| '7'),
+                    .unwrap_or('7'),
             );
         }
     }
@@ -82,20 +80,12 @@ fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
     args.remove.chars().for_each(|x| {
         _ = &remove_set.insert(x);
     });
-    "01aeiouyAEIOUY"
-        .to_string()
-        .chars()
-        .into_iter()
-        .for_each(|x| {
-            _ = vowels.insert(x);
-        });
-    "B8G6I1l0OQDS5Z2"
-        .to_string()
-        .chars()
-        .into_iter()
-        .for_each(|x| {
-            _ = ambiguous.insert(x);
-        });
+    "01aeiouyAEIOUY".to_string().chars().for_each(|x| {
+        _ = vowels.insert(x);
+    });
+    "B8G6I1l0OQDS5Z2".to_string().chars().for_each(|x| {
+        _ = ambiguous.insert(x);
+    });
     move |ch: &char| -> bool {
         !(args.no_capitals && ch.is_ascii_uppercase())
             || (args.no_numbers && ch.is_ascii_digit())
@@ -104,11 +94,11 @@ fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
             || remove_set.contains(ch)
     }
 }
-fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl FnMut() -> ()) {
+fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl FnMut()) {
     const BUFFER_SIZE: usize = 12288;
     const ENGINE: GeneralPurpose =
         GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
-    let filter = make_filter(&args);
+    let filter = make_filter(args);
     let random_byte_buffer = [0u8; BUFFER_SIZE];
     let rbb_cell = Rc::new(RefCell::new(random_byte_buffer));
     let rcb_cell = Rc::new(RefCell::new(Vec::<char>::new()));
@@ -132,11 +122,7 @@ fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl
                     rcb.clear();
                     rcb_index = 0;
                     csprng.fill_bytes(&mut *rbb);
-                    ENGINE
-                        .encode(*rbb)
-                        .chars()
-                        .into_iter()
-                        .for_each(|x| rcb.push(x));
+                    ENGINE.encode(*rbb).chars().for_each(|x| rcb.push(x));
                     rbb.zeroize();
                 }
                 ch = rcb[rcb_index];

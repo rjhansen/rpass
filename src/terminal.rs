@@ -1,6 +1,6 @@
 use crate::cmdline;
 use cmdline::Args;
-use terminal_size::{terminal_size, Height, Width};
+use terminal_size::{Height, Width, terminal_size};
 
 pub fn get_terminal_width() -> u16 {
     match terminal_size() {
@@ -18,6 +18,5 @@ pub fn get_terminal_width() -> u16 {
 }
 
 pub fn get_words_per_line(args: &Args) -> u16 {
-    ((get_terminal_width() as f32 / (args.length.unwrap_or_else(|| 8) + 1) as f32).ceil() as u16)
-        - 2
+    ((get_terminal_width() as f32 / (args.length.unwrap_or(8) + 1) as f32).ceil() as u16) - 2
 }
