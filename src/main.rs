@@ -11,13 +11,12 @@ use zeroize::Zeroize;
 
 fn main() {
     let args = parse_command_line();
-    match args.secure {
-        true => eprintln!(
+    if args.secure {
+        eprintln!(
 r#"info: the -s flag is unnecessary. pwgen would by default create passwords
       from phonemes, but by passing -s it would abandon phonemes in favor
       of high-entropy random glyphs. rpass only generates high-entropy
-      random glyphs. You may safely drop this flag from your pipeline."#),
-        false => {}
+      random glyphs. You may safely drop this flag from your pipeline."#);
     }
 
     // The password generator closure uses some sensitive memory which
