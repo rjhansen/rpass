@@ -66,8 +66,8 @@ pub struct Args {
     #[arg(
         short = 's',
         long = "secure",
-        help = "use a cryptographic-strength RNG",
-        default_value_t = true
+        help = "generate completely random passwords",
+        default_value_t = false
     )]
     pub(crate) secure: bool,
 
