@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use zeroize::Zeroize;
 
+#[allow(clippy::cast_possible_truncation)]
 pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut() -> String, impl FnMut()) {
     let mut satisfy_policies = make_satisfier(args);
     let (mut generator, finalizer) = make_character_generator(args);
@@ -15,7 +16,7 @@ pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut() -> String,
 
     (
         move || -> String {
-            let mut password = "".to_string();
+            let mut password = String::new();
             satisfy_policies(&mut password);
             for _ in 0..(length - (password.chars().count()) as u16) {
                 let mut ch = generator();
@@ -30,19 +31,15 @@ pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut() -> String,
 fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
     // These are taken directly from pwgen.
     const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-    let symbols_length = SYMBOLS.chars().count();
-
-    // These are taken directly from pwgen.
     const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let capitals_length = CAPITALS.chars().count();
-
-    // These are taken directly from pwgen.
     const NUMBERS: &str = "0123456789";
-    let numbers_length = NUMBERS.chars().count();
 
-    let ensure_symbols: bool = args.ensure_symbols;
-    let ensure_capitals: bool = args.ensure_capitals;
-    let ensure_numbers: bool = args.ensure_numbers;
+    let symbols_length = SYMBOLS.chars().count();
+    let capitals_length = CAPITALS.chars().count();
+    let numbers_length = NUMBERS.chars().count();
+    let ensure_symbols = args.ensure_symbols;
+    let ensure_capitals = args.ensure_capitals;
+    let ensure_numbers = args.ensure_numbers;
     let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
 
     move |password: &mut String| -> () {
@@ -94,6 +91,8 @@ fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
             || remove_set.contains(ch)
     }
 }
+
+#[allow(clippy::similar_names)]
 fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl FnMut()) {
     const BUFFER_SIZE: usize = 12288;
     const ENGINE: GeneralPurpose =

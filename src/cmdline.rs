@@ -19,6 +19,7 @@ use terminal::get_words_per_line;
 {all-args}{after-help}
 "
 )]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Args {
     #[arg(
         short = 'c',
@@ -113,6 +114,7 @@ pub struct Args {
     pub(crate) count: Option<u16>,
 }
 
+#[must_use]
 pub fn parse_command_line() -> Args {
     let mut rv = Args::parse();
     sanity_checks(&mut rv);
@@ -157,12 +159,16 @@ fn sanity_checks(args: &mut Args) {
     }
 }
 
+#[must_use]
 pub fn get_count(args: &Args) -> u16 {
     match args.count {
-        None => match args.multi_column {
-            true => (get_words_per_line(args) + 1) * 20,
-            false => 1,
-        },
+        None => {
+            if args.multi_column {
+                (get_words_per_line(args) + 1) * 20
+            } else {
+                1
+            }
+        }
         Some(count) => count,
     }
 }
