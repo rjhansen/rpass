@@ -1,3 +1,4 @@
+use crate::{cmdline, get_words_per_line};
 use clap::Parser;
 use std::process::exit;
 
@@ -152,5 +153,15 @@ fn sanity_checks(args: &mut Args) {
     if count < 1 || count > 1000 {
         eprintln!("error: count must be in range [1, 1000].");
         exit(1);
+    }
+}
+
+pub fn get_count(args: &cmdline::Args) -> u16 {
+    match args.count {
+        None => match args.multi_column {
+            true => get_words_per_line(args) * 20,
+            false => 1,
+        },
+        Some(count) => count,
     }
 }
