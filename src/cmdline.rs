@@ -24,7 +24,7 @@ pub struct Args {
     #[arg(
         short = 'c',
         long = "capitalize",
-        help = "ensure one or more capital letters",
+        help = "Ensure one or more capital letters",
         default_value_t = false
     )]
     pub(crate) ensure_capitals: bool,
@@ -32,7 +32,7 @@ pub struct Args {
     #[arg(
         short = 'A',
         long = "no-capitalize",
-        help = "ensure no capital letters",
+        help = "Ensure no capital letters",
         default_value_t = false
     )]
     pub(crate) no_capitals: bool,
@@ -40,7 +40,7 @@ pub struct Args {
     #[arg(
         short = 'n',
         long = "numerals",
-        help = "ensure one or more numbers",
+        help = "Ensure one or more numbers",
         default_value_t = false
     )]
     pub(crate) ensure_numbers: bool,
@@ -48,7 +48,7 @@ pub struct Args {
     #[arg(
         short = '0',
         long = "no-numerals",
-        help = "ensure no numbers",
+        help = "Ensure no numbers",
         default_value_t = false
     )]
     pub(crate) no_numbers: bool,
@@ -56,18 +56,18 @@ pub struct Args {
     #[arg(
         short = 'y',
         long = "symbols",
-        help = "ensure at least one special character",
+        help = "Ensure at least one special character",
         default_value_t = false
     )]
     pub(crate) ensure_symbols: bool,
 
-    #[arg(short = 'r', long = "remove-chars", help = "omit these characters", default_value_t = String::new())]
+    #[arg(short = 'r', long = "remove-chars", help = "Omit these characters", default_value_t = String::new())]
     pub(crate) remove: String,
 
     #[arg(
         short = 's',
         long = "secure",
-        help = "generate completely random passwords",
+        help = "Generate completely random passwords",
         default_value_t = false
     )]
     pub(crate) secure: bool,
@@ -75,7 +75,7 @@ pub struct Args {
     #[arg(
         short = 'B',
         long = "ambiguous",
-        help = "don't include ambiguous characters",
+        help = "Don't include ambiguous characters",
         default_value_t = false
     )]
     pub(crate) no_ambiguous: bool,
@@ -83,18 +83,18 @@ pub struct Args {
     #[arg(
         short = 'v',
         long = "no-vowels",
-        help = "don't use any vowels",
+        help = "Don't use any vowels",
         default_value_t = false
     )]
     pub(crate) no_vowels: bool,
 
-    #[arg(long = "copyright", help = "show copyright notice")]
+    #[arg(short = '©', long = "copyright", help = "Show copyright notice")]
     pub(crate) copyright: bool,
 
     #[arg(
         short = '1',
         long = "one-column",
-        help = "display results in one column",
+        help = "Display results in one column",
         default_value_t = false
     )]
     pub(crate) one_column: bool,
@@ -102,12 +102,12 @@ pub struct Args {
     #[arg(
         short = 'C',
         long = "multicolumn",
-        help = "display results in multiple columns",
+        help = "Display results in multiple columns",
         default_value_t = true
     )]
     pub(crate) multi_column: bool,
 
-    #[arg(short = 'b', long = "bugs", help = "where to file bug reports")]
+    #[arg(short = 'b', long = "bugs", help = "Where to file bug reports")]
     pub(crate) bugs: bool,
 
     pub(crate) length: Option<u16>,
