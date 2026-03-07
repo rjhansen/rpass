@@ -1,6 +1,6 @@
 use crate::cmdline;
-use base64::engine::{GeneralPurpose, general_purpose};
-use base64::{Engine, alphabet};
+use base64::engine::{general_purpose, GeneralPurpose};
+use base64::{alphabet, Engine};
 use rand::{Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::cell::RefCell;
@@ -9,21 +9,21 @@ use std::rc::Rc;
 use zeroize::Zeroize;
 
 #[allow(clippy::cast_possible_truncation)]
-pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut() -> String, impl FnMut()) {
+pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut(&mut String), impl FnMut()) {
     let mut satisfy_policies = make_satisfier(args);
     let (mut generator, finalizer) = make_character_generator(args);
     let length = args.length.unwrap_or(8);
 
     (
-        move || -> String {
-            let mut password = String::new();
-            satisfy_policies(&mut password);
+        move |password: &mut String| {
+            password.zeroize();
+            password.truncate(0);
+            satisfy_policies(password);
             for _ in 0..(length - (password.chars().count()) as u16) {
                 let mut ch = generator();
                 password.push(ch);
                 ch.zeroize();
             }
-            password
         },
         finalizer,
     )

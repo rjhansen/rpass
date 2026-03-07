@@ -30,8 +30,9 @@ fn main() {
     // how many to print on a line, and so forth.
     let mut printer = make_printer(&args);
 
+    let mut password = String::new();
     for _ in 0..get_count(&args) {
-        let mut password = pwgen();
+        pwgen(&mut password);
         printer(&password);
         password.zeroize();
     }
