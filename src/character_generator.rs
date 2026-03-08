@@ -6,7 +6,11 @@ use rand_hc::Hc128Rng;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::sync::{LazyLock, Mutex};
 use zeroize::Zeroize;
+
+pub static CSPRNG: LazyLock<Mutex<Hc128Rng>> =
+    LazyLock::new(|| Mutex::new(Hc128Rng::from_rng(&mut rand::rng())));
 
 #[allow(clippy::cast_possible_truncation)]
 pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut(&mut String), impl FnMut()) {
@@ -40,14 +44,13 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
     let ensure_symbols = args.ensure_symbols;
     let ensure_capitals = args.ensure_capitals;
     let ensure_numbers = args.ensure_numbers;
-    let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
 
     move |password: &mut String| -> () {
         if ensure_symbols {
             password.push(
                 SYMBOLS
                     .chars()
-                    .nth(csprng.random_range(0..symbols_length))
+                    .nth(CSPRNG.lock().unwrap().random_range(0..symbols_length))
                     .unwrap_or('+'),
             );
         }
@@ -55,7 +58,7 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
             password.push(
                 CAPITALS
                     .chars()
-                    .nth(csprng.random_range(0..capitals_length))
+                    .nth(CSPRNG.lock().unwrap().random_range(0..capitals_length))
                     .unwrap_or('A'),
             );
         }
@@ -63,7 +66,7 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
             password.push(
                 NUMBERS
                     .chars()
-                    .nth(csprng.random_range(0..numbers_length))
+                    .nth(CSPRNG.lock().unwrap().random_range(0..numbers_length))
                     .unwrap_or('7'),
             );
         }
@@ -102,7 +105,6 @@ fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl
     let rbb_cell = Rc::new(RefCell::new(random_byte_buffer));
     let rcb_cell = Rc::new(RefCell::new(Vec::<char>::new()));
     let mut rcb_index: usize = 0;
-    let mut csprng = Hc128Rng::from_rng(&mut rand::rng());
 
     let rb1 = rbb_cell.clone();
     let rb2 = rbb_cell.clone();
@@ -120,7 +122,7 @@ fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl
                     rcb.zeroize();
                     rcb.clear();
                     rcb_index = 0;
-                    csprng.fill_bytes(&mut *rbb);
+                    CSPRNG.lock().unwrap().fill_bytes(&mut *rbb);
                     ENGINE.encode(*rbb).chars().for_each(|x| rcb.push(x));
                     rbb.zeroize();
                 }
