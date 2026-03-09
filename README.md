@@ -127,8 +127,7 @@ Eight is 2³, while six is 2 * 3. By setting our buffer size to 12288 bytes
 six bits with no padding. Padding could upset our entropy guarantee, which is why
 the buffer is sized how it is.
 
-We begin generating a password by applying whatever must-include directives are in
-effect. Once those are dealt with we walk down our 16,384 random glyphs. For
+Once those are dealt with we walk down our 16,384 random glyphs. For
 each glyph we check if it meets must-exclude directives: if it’s acceptable it gets
 added to the password. If at any step we run out of random glyphs, we generate
 another set of 16,384 and continue.
