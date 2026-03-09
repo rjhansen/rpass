@@ -6,6 +6,16 @@
 
 System administrators. This tool probably isn’t useful to regular users.
 
+## Installation
+
+To install from source you’ll need the [Rust development tools](https://rust-lang.org/learn/get-started/).
+Once those are installed, `rpass` can be installed through `cargo` with the
+following:
+
+```shell
+$ cargo install --git https://github.com/rjhansen/rpass
+```
+
 ## What problem does it solve?
 
 Many system administrators need a command-line utility to produce random passwords.
