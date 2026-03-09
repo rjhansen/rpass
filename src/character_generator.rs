@@ -13,26 +13,34 @@ pub static CSPRNG: LazyLock<Mutex<Hc128Rng>> =
     LazyLock::new(|| Mutex::new(Hc128Rng::from_rng(&mut rand::rng())));
 
 #[allow(clippy::cast_possible_truncation)]
-pub fn make_password_generator(args: &cmdline::Args) -> (impl FnMut(&mut String), impl FnMut()) {
-    let mut satisfy_policies = make_satisfier(args);
-    let (mut generator, finalizer) = make_character_generator(args);
+pub fn make_password_generator(args: cmdline::Args) -> (impl FnMut(&mut String), impl FnMut()) {
+    let mut satisfy_policies = make_satisfier(args.clone());
+    let (mut generator, finalizer) = make_character_generator(args.clone());
     let length = args.length.unwrap_or(8);
+    let mut buf = ['\0'; 1024];
+
+    // this is enforced in cmdline.rs
+    debug_assert!(length as usize <= buf.len());
 
     (
         move |password: &mut String| {
+            buf.zeroize();
             password.zeroize();
             password.truncate(0);
-            satisfy_policies(password);
-            for _ in 0..(length - (password.chars().count()) as u16) {
-                let mut ch = generator();
-                password.push(ch);
-                ch.zeroize();
+            password.reserve((length + 1) as usize);
+            for index in 0..length {
+                buf[index as usize] = generator();
             }
+            satisfy_policies(&mut buf[0..length as usize]);
+            for index in 0..length {
+                password.push(buf[index as usize]);
+            }
+            buf.zeroize();
         },
         finalizer,
     )
 }
-fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
+fn make_satisfier(args: cmdline::Args) -> impl FnMut(&mut [char]) {
     // These are taken directly from pwgen.
     const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
     const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -44,66 +52,74 @@ fn make_satisfier(args: &cmdline::Args) -> impl FnMut(&mut String) {
     let ensure_symbols = args.ensure_symbols;
     let ensure_capitals = args.ensure_capitals;
     let ensure_numbers = args.ensure_numbers;
+    let mut used_positions = HashSet::<usize>::new();
 
-    move |password: &mut String| -> () {
+    move |buffer: &mut [char]| -> () {
+        used_positions.clear();
+        let length = buffer.len();
         if ensure_symbols {
-            password.push(
-                SYMBOLS
-                    .chars()
-                    .nth(CSPRNG.lock().unwrap().random_range(0..symbols_length))
-                    .unwrap_or('+'),
-            );
+            let pos = CSPRNG.lock().unwrap().random_range(0..length);
+            buffer[pos] = SYMBOLS
+                .chars()
+                .nth(CSPRNG.lock().unwrap().random_range(0..symbols_length))
+                .unwrap_or('+');
+            used_positions.insert(pos);
         }
         if ensure_capitals {
-            password.push(
-                CAPITALS
-                    .chars()
-                    .nth(CSPRNG.lock().unwrap().random_range(0..capitals_length))
-                    .unwrap_or('A'),
-            );
+            let mut pos = CSPRNG.lock().unwrap().random_range(0..length);
+            while used_positions.contains(&pos) {
+                pos = CSPRNG.lock().unwrap().random_range(0..length);
+            }
+            buffer[pos] = CAPITALS
+                .chars()
+                .nth(CSPRNG.lock().unwrap().random_range(0..capitals_length))
+                .unwrap_or('A');
+            used_positions.insert(pos);
         }
         if ensure_numbers {
-            password.push(
-                NUMBERS
-                    .chars()
-                    .nth(CSPRNG.lock().unwrap().random_range(0..numbers_length))
-                    .unwrap_or('7'),
-            );
+            let mut pos = CSPRNG.lock().unwrap().random_range(0..length);
+            while used_positions.contains(&pos) {
+                pos = CSPRNG.lock().unwrap().random_range(0..length);
+            }
+            buffer[pos] = NUMBERS
+                .chars()
+                .nth(CSPRNG.lock().unwrap().random_range(0..numbers_length))
+                .unwrap_or('7');
         }
     }
 }
 
-fn make_filter(args: &cmdline::Args) -> impl Fn(&char) -> bool {
+fn make_filter(args: cmdline::Args) -> impl Fn(&char) -> bool {
     let mut remove_set = HashSet::<char>::new();
     let mut vowels = HashSet::<char>::new();
     let mut ambiguous = HashSet::<char>::new();
     args.remove.chars().for_each(|x| {
         _ = &remove_set.insert(x);
     });
-    "01aeiouyAEIOUY".to_string().chars().for_each(|x| {
+    "aeiouyAEIOUY".to_string().chars().for_each(|x| {
         _ = vowels.insert(x);
     });
     "B8G6I1l0OQDS5Z2".to_string().chars().for_each(|x| {
         _ = ambiguous.insert(x);
     });
     move |ch: &char| -> bool {
-        !(args.no_capitals && ch.is_ascii_uppercase())
+        !((args.no_capitals && ch.is_ascii_uppercase())
             || (args.no_numbers && ch.is_ascii_digit())
             || (args.no_vowels && vowels.contains(ch))
             || (args.no_ambiguous && ambiguous.contains(ch))
-            || remove_set.contains(ch)
+            || remove_set.contains(ch))
     }
 }
 
 #[allow(clippy::similar_names)]
-fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl FnMut()) {
+fn make_character_generator(args: cmdline::Args) -> (impl FnMut() -> char, impl FnMut()) {
     const BUFFER_SIZE: usize = 12288;
     const ENGINE: GeneralPurpose =
         GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
-    let filter = make_filter(args);
+    let filter = make_filter(args.clone());
     let random_byte_buffer = [0u8; BUFFER_SIZE];
     let rbb_cell = Rc::new(RefCell::new(random_byte_buffer));
-    let rcb_cell = Rc::new(RefCell::new(Vec::<char>::new()));
+    let rcb_cell = Rc::new(RefCell::new(Vec::with_capacity(BUFFER_SIZE * 4 / 3)));
     let mut rcb_index: usize = 0;
 
     let rb1 = rbb_cell.clone();
@@ -123,7 +139,9 @@ fn make_character_generator(args: &cmdline::Args) -> (impl FnMut() -> char, impl
                     rcb.clear();
                     rcb_index = 0;
                     CSPRNG.lock().unwrap().fill_bytes(&mut *rbb);
-                    ENGINE.encode(*rbb).chars().for_each(|x| rcb.push(x));
+                    let mut tmp_str = ENGINE.encode(*rbb);
+                    tmp_str.chars().for_each(|x| rcb.push(x));
+                    tmp_str.zeroize();
                     rbb.zeroize();
                 }
                 ch = rcb[rcb_index];

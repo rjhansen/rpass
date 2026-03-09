@@ -1,4 +1,5 @@
 # rpass
+
 ## _… because random passwords shouldn’t be left to chance._
 
 ## Intended Audience
@@ -78,7 +79,7 @@ A few of these flags deserve special comment.
   at least). It was borderline-foolish even when Ted first wrote `pwgen`, and in
   today’s threat environment it’s genuinely foolish.
 * `LENGTH` must be in the range [6, 43] inclusive.
-* `COUNT` must be in the range [1, 1000] inclusive.
+* `COUNT` must be in the range [1, 10000] inclusive.
 
 ## Output
 
@@ -119,7 +120,7 @@ Once the password is assembled it’s printed to `stdout`. Once printed, the pas
 is zeroized so as to reduce the forensics traces left in memory.
 
 Once all passwords are written, the byte buffer and string of random glyphs are
-zeroized. (The byte buffer was already zeroized; doing so on exit is just 
+zeroized. (The byte buffer was already zeroized; doing so on exit is just
 belt-and-suspenders engineering.)
 
 ## License

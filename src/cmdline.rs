@@ -3,7 +3,7 @@ use clap::Parser;
 use std::process::exit;
 use terminal::get_words_per_line;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(
     author = "Robert J. Hansen <rob@hansen.engineering>",
     version,
@@ -124,6 +124,13 @@ pub fn parse_command_line() -> Args {
 fn sanity_checks(args: &mut Args) {
     args.multi_column = true;
 
+    if args.remove.chars().count() > 16 {
+        eprintln!(
+            r"error: the resulting passwords would be alarmingly low-entropy with that --remove set."
+        );
+        exit(1);
+    }
+
     if args.one_column {
         args.multi_column = false;
     }
@@ -153,8 +160,8 @@ fn sanity_checks(args: &mut Args) {
         eprintln!("error: length must be in the range [6, 43].");
         exit(1);
     }
-    if !(1..=1000).contains(&count) {
-        eprintln!("error: count must be in range [1, 1000].");
+    if !(1..=10000).contains(&count) {
+        eprintln!("error: count must be in range [1, 10000].");
         exit(1);
     }
 }
