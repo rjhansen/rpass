@@ -6,6 +6,11 @@ authors = ["Robert J. Hansen <rob@hansen.engineering>"]
 description = "Constructs cryptographically strong passwords using the HC128 stream cipher."
 repository = "https://github.com/rjhansen/rpass"
 license = "Apache-2.0"
+exclude = [
+    ".vscode/*",
+    ".gitignore",
+]
+
 
 [dependencies]
 rand = "0.10.0"
