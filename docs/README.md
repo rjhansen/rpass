@@ -1,4 +1,5 @@
 # rpass
+
 ## _… because random passwords shouldn’t be left to chance._
 
 ## Intended Audience
@@ -39,6 +40,7 @@ With respect and a grateful nod of the head to Ted for `pwgen`, an overhaul is n
 command-line arguments should look familiar:
 
 ```
+rpass 1.2.1
 Generates high-entropy passwords.
 
 Usage: rpass [OPTIONS] [LENGTH] [COUNT]
@@ -48,25 +50,27 @@ Arguments:
   [COUNT]
 
 Options:
-  -c, --capitalize             ensure one or more capital letters
-  -A, --no-capitalize          ensure no capital letters
-  -n, --numerals               ensure one or more numbers
-  -0, --no-numerals            ensure no numbers
-  -y, --symbols                ensure at least one special character
-  -r, --remove-chars <REMOVE>  omit these characters [default: ""]
-  -s, --secure                 use a cryptographic-strength RNG
-  -B, --ambiguous              don't include ambiguous characters
-  -v, --no-vowels              don't use any vowels
-      --copyright              show copyright notice
-  -1, --one-column             display results in one column
-  -C, --multicolumn            display results in multiple columns
-  -b, --bugs                   where to file bug reports
+  -c, --capitalize             Ensure one or more capital letters
+  -A, --no-capitalize          Ensure no capital letters
+  -n, --numerals               Ensure one or more numbers
+  -0, --no-numerals            Ensure no numbers
+  -y, --symbols                Ensure at least one special character
+  -r, --remove-chars <REMOVE>  Omit these characters [default: ""]
+  -s, --secure                 Generate completely random passwords
+  -B, --ambiguous              Don't include ambiguous characters
+  -v, --no-vowels              Don't use any vowels
+  -©, --copyright              Show copyright notice
+  -1, --one-column             Display results in one column
+  -C, --multicolumn            Display results in multiple columns
+  -b, --bugs                   Where to file bug reports
   -h, --help                   Print help (see more with '--help')
   -V, --version                Print version
   ```
 
 A few of these flags deserve special comment.
 
+* Yes, the short form of `--copyright` uses the Unicode copyright symbol, ©.
+  It’s 2026: your terminal should support Unicode.
 * Flags that ensure the output will conform to content policies will reduce the
   overall password strength by making it more predictable. Account for this and
   choose a longer password if needed.
@@ -74,23 +78,39 @@ A few of these flags deserve special comment.
 * When using `-C`, `rpass` will be reasonably accommodating of terminal sizes but
   not unreasonably so. If your terminal width is set to, say, 2500, calibrate your
   expectations accordingly.
+* Technically, `-C` is a no-op because that’s the default behavior anyway. However,
+  `pwgen` works this way, so we do too in the interests of being a drop-in
+  replacement.
 * `pwgen`’s `-H` flag is not supported and **will not be** supported (not by me,
   at least). It was borderline-foolish even when Ted first wrote `pwgen`, and in
   today’s threat environment it’s genuinely foolish.
+* Using `-r` will invalidate our `six bits per glyph!` entropy guarantee. In fact,
+  unwise use of `-r` can drop the entropy per glyph to dangerously low levels.
 * `LENGTH` must be in the range [6, 43] inclusive.
-* `COUNT` must be in the range [1, 1000] inclusive.
+* `COUNT` must be in the range [1, 10000] inclusive.
+
+## Keylengths and Entropy
+
+| Desired entropy | Password length |
+|:---------------:|:---------------:|
+| 40              | 7               |
+| 64              | 11              |
+| 80              | 14              |
+| 96              | 16              |
+| 128             | 21              |
+| 192             | 32              |
+| 256             | 43              |
 
 ## Output
 
 Each password from `rpass` contains six bits of entropy per glyph. See the
-preceding section for warnings about how certain flags can undercut this promise.
+preceding section(s) for warnings about how certain flags can undercut this promise.
 
 ## How does it work?
 
 Rust’s default random number generator is believed to be cryptographically
-secure. However, I’m unaware of exactly how hard cryptographers have looked
-at it, and I suspect with all the architectures it runs on a little
-skepticism is warranted that it’s cryptographically secure on all of them.
+secure. However, there are no guarantees made about the underlying implementation
+and I’d like a little control over that.
 
 So, we run our own cryptographically secure pseudorandom number generator
 based on the well-studied HC-128 stream cipher. To key it and set the
@@ -108,18 +128,20 @@ six bits with no padding. Padding could upset our entropy guarantee, which is wh
 the buffer is sized how it is.
 
 We begin generating a password by applying whatever must-include directives are in
-effect. If it must include a symbol, a capital letter, a number, or whatever, those
-are dealt with first and are not part of our “six bits of entropy per glyph!”
-guarantee. Once those are dealt with we walk down our 16,384 random glyphs. For
+effect. Once those are dealt with we walk down our 16,384 random glyphs. For
 each glyph we check if it meets must-exclude directives: if it’s acceptable it gets
 added to the password. If at any step we run out of random glyphs, we generate
 another set of 16,384 and continue.
 
-Once the password is assembled it’s printed to `stdout`. Once printed, the password
-is zeroized so as to reduce the forensics traces left in memory.
+If must-include directives are in effect, those
+are dealt with last and are not part of our “six bits of entropy per glyph!”
+guarantee.
+
+Once the password is assembled it’s printed to `stdout` and flushed. Once
+printed, the password is zeroized so as to reduce the forensics traces left in memory.
 
 Once all passwords are written, the byte buffer and string of random glyphs are
-zeroized. (The byte buffer was already zeroized; doing so on exit is just 
+zeroized. (The byte buffer was already zeroized; doing so on exit is just
 belt-and-suspenders engineering.)
 
 ## License
