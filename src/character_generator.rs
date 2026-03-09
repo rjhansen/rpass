@@ -1,6 +1,7 @@
 use crate::cmdline;
 use base64::engine::{general_purpose, GeneralPurpose};
 use base64::{alphabet, Engine};
+use cmdline::Args;
 use rand::{seq::SliceRandom, Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::cell::RefCell;
@@ -14,7 +15,7 @@ pub static CSPRNG: LazyLock<Mutex<Hc128Rng>> =
 
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::needless_pass_by_value)]
-pub fn make_password_generator(args: cmdline::Args) -> (impl FnMut(&mut String), impl FnMut()) {
+pub fn make_password_generator(args: Args) -> (impl FnMut(&mut String), impl FnMut()) {
     let mut satisfy_policies = make_satisfier(args.clone());
     let (mut generator, finalizer) = make_character_generator(args.clone());
     let length = args.length.unwrap_or(8);
@@ -43,7 +44,7 @@ pub fn make_password_generator(args: cmdline::Args) -> (impl FnMut(&mut String),
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn make_satisfier(args: cmdline::Args) -> impl FnMut(&mut [char]) {
+fn make_satisfier(args: Args) -> impl FnMut(&mut [char]) {
     // These are taken directly from pwgen.
     let symbols: Vec<char> = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect();
     let capitals: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
@@ -87,7 +88,7 @@ fn make_satisfier(args: cmdline::Args) -> impl FnMut(&mut [char]) {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn make_filter(args: cmdline::Args) -> impl Fn(&char) -> bool {
+fn make_filter(args: Args) -> impl Fn(&char) -> bool {
     let mut remove_set = HashSet::<char>::new();
     let mut vowels = HashSet::<char>::new();
     let mut ambiguous = HashSet::<char>::new();
@@ -111,7 +112,7 @@ fn make_filter(args: cmdline::Args) -> impl Fn(&char) -> bool {
 
 #[allow(clippy::similar_names)]
 #[allow(clippy::needless_pass_by_value)]
-fn make_character_generator(args: cmdline::Args) -> (impl FnMut() -> char, impl FnMut()) {
+fn make_character_generator(args: Args) -> (impl FnMut() -> char, impl FnMut()) {
     const BUFFER_SIZE: usize = 12288;
     const ENGINE: GeneralPurpose =
         GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
