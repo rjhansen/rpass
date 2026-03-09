@@ -27,7 +27,7 @@ pub fn get_words_per_line(args: &Args) -> u16 {
     if tw <= len {
         return 1;
     }
-    let tw = f32::from(tw);
+    let tw = f32::from(tw + 1);
     let l = f32::from(len + 1);
-    ((tw / l).ceil() as u16).saturating_sub(2).max(1)
+    ((tw / l).floor() as u16).max(1)
 }
