@@ -164,6 +164,14 @@ fn sanity_checks(args: &mut Args) {
         eprintln!("error: count must be in range [1, 10000].");
         exit(1);
     }
+    if args.secure {
+        eprintln!(
+            r"info: the -s flag is unnecessary. pwgen would by default create passwords
+      from phonemes, but by passing -s it would abandon phonemes in favor
+      of high-entropy random glyphs. rpass only generates high-entropy
+      random glyphs. You may safely drop this flag from your pipeline."
+        );
+    }
 }
 
 #[must_use]

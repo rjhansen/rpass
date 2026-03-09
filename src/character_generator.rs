@@ -1,7 +1,7 @@
 use crate::cmdline;
 use base64::engine::{general_purpose, GeneralPurpose};
 use base64::{alphabet, Engine};
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{seq::SliceRandom, Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -13,6 +13,7 @@ pub static CSPRNG: LazyLock<Mutex<Hc128Rng>> =
     LazyLock::new(|| Mutex::new(Hc128Rng::from_rng(&mut rand::rng())));
 
 #[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn make_password_generator(args: cmdline::Args) -> (impl FnMut(&mut String), impl FnMut()) {
     let mut satisfy_policies = make_satisfier(args.clone());
     let (mut generator, finalizer) = make_character_generator(args.clone());
@@ -40,55 +41,52 @@ pub fn make_password_generator(args: cmdline::Args) -> (impl FnMut(&mut String),
         finalizer,
     )
 }
+
+#[allow(clippy::needless_pass_by_value)]
 fn make_satisfier(args: cmdline::Args) -> impl FnMut(&mut [char]) {
     // These are taken directly from pwgen.
-    const SYMBOLS: &str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-    const CAPITALS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const NUMBERS: &str = "0123456789";
+    let symbols: Vec<char> = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect();
+    let capitals: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
+    let numbers: Vec<char> = "0123456789".chars().collect();
 
-    let symbols_length = SYMBOLS.chars().count();
-    let capitals_length = CAPITALS.chars().count();
-    let numbers_length = NUMBERS.chars().count();
     let ensure_symbols = args.ensure_symbols;
     let ensure_capitals = args.ensure_capitals;
     let ensure_numbers = args.ensure_numbers;
-    let mut used_positions = HashSet::<usize>::new();
+
+    let mut use_positions = Vec::<usize>::new();
+    use_positions.resize(ensure_symbols as usize, 0);
 
     move |buffer: &mut [char]| -> () {
-        used_positions.clear();
-        let length = buffer.len();
+        use_positions.clear();
+        for index in 0..buffer.len() {
+            use_positions.push(index);
+        }
+        {
+            let mut random = CSPRNG.lock().unwrap();
+            use_positions.shuffle(&mut random);
+        }
+
+        let mut pos_iter = use_positions.iter();
         if ensure_symbols {
-            let pos = CSPRNG.lock().unwrap().random_range(0..length);
-            buffer[pos] = SYMBOLS
-                .chars()
-                .nth(CSPRNG.lock().unwrap().random_range(0..symbols_length))
-                .unwrap_or('+');
-            used_positions.insert(pos);
+            let buf_pos = *pos_iter.next().unwrap();
+            let char_idx = CSPRNG.lock().unwrap().random_range(0..symbols.len());
+            buffer[buf_pos] = symbols[char_idx];
         }
         if ensure_capitals {
-            let mut pos = CSPRNG.lock().unwrap().random_range(0..length);
-            while used_positions.contains(&pos) {
-                pos = CSPRNG.lock().unwrap().random_range(0..length);
-            }
-            buffer[pos] = CAPITALS
-                .chars()
-                .nth(CSPRNG.lock().unwrap().random_range(0..capitals_length))
-                .unwrap_or('A');
-            used_positions.insert(pos);
+            let buf_pos = *pos_iter.next().unwrap();
+            let char_idx = CSPRNG.lock().unwrap().random_range(0..capitals.len());
+            buffer[buf_pos] = capitals[char_idx];
         }
         if ensure_numbers {
-            let mut pos = CSPRNG.lock().unwrap().random_range(0..length);
-            while used_positions.contains(&pos) {
-                pos = CSPRNG.lock().unwrap().random_range(0..length);
-            }
-            buffer[pos] = NUMBERS
-                .chars()
-                .nth(CSPRNG.lock().unwrap().random_range(0..numbers_length))
-                .unwrap_or('7');
+            let buf_pos = *pos_iter.next().unwrap();
+            let char_idx = CSPRNG.lock().unwrap().random_range(0..numbers.len());
+            buffer[buf_pos] = numbers[char_idx];
         }
+        use_positions.zeroize();
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn make_filter(args: cmdline::Args) -> impl Fn(&char) -> bool {
     let mut remove_set = HashSet::<char>::new();
     let mut vowels = HashSet::<char>::new();
@@ -112,6 +110,7 @@ fn make_filter(args: cmdline::Args) -> impl Fn(&char) -> bool {
 }
 
 #[allow(clippy::similar_names)]
+#[allow(clippy::needless_pass_by_value)]
 fn make_character_generator(args: cmdline::Args) -> (impl FnMut() -> char, impl FnMut()) {
     const BUFFER_SIZE: usize = 12288;
     const ENGINE: GeneralPurpose =

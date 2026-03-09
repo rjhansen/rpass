@@ -2,6 +2,7 @@ use crate::cmdline;
 use crate::cmdline::get_count;
 use crate::terminal::get_words_per_line;
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn make_printer(args: cmdline::Args) -> impl FnMut(&String) {
     let count = get_count(&args);
     let wpl = get_words_per_line(&args);
