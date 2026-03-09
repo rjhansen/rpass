@@ -109,15 +109,17 @@ six bits with no padding. Padding could upset our entropy guarantee, which is wh
 the buffer is sized how it is.
 
 We begin generating a password by applying whatever must-include directives are in
-effect. If it must include a symbol, a capital letter, a number, or whatever, those
-are dealt with first and are not part of our “six bits of entropy per glyph!”
-guarantee. Once those are dealt with we walk down our 16,384 random glyphs. For
+effect. Once those are dealt with we walk down our 16,384 random glyphs. For
 each glyph we check if it meets must-exclude directives: if it’s acceptable it gets
 added to the password. If at any step we run out of random glyphs, we generate
 another set of 16,384 and continue.
 
-Once the password is assembled it’s printed to `stdout`. Once printed, the password
-is zeroized so as to reduce the forensics traces left in memory.
+If must-include directives are in effect, those
+are dealt with last and are not part of our “six bits of entropy per glyph!”
+guarantee.
+
+Once the password is assembled it’s printed to `stdout` and flushed. Once
+printed, the password is zeroized so as to reduce the forensics traces left in memory.
 
 Once all passwords are written, the byte buffer and string of random glyphs are
 zeroized. (The byte buffer was already zeroized; doing so on exit is just
