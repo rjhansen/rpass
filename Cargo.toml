@@ -1,6 +1,6 @@
 [package]
 name = "rpass"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2024"
 authors = ["Robert J. Hansen <rob@hansen.engineering>"]
 description = "Constructs cryptographically strong passwords using the HC128 stream cipher."
