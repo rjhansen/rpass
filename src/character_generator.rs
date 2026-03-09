@@ -54,8 +54,7 @@ fn make_satisfier(args: Args) -> impl FnMut(&mut [char]) {
     let ensure_capitals = args.ensure_capitals;
     let ensure_numbers = args.ensure_numbers;
 
-    let mut use_positions = Vec::<usize>::new();
-    use_positions.resize(ensure_symbols as usize, 0);
+    let mut use_positions = vec![0; args.length.unwrap_or(8) as usize];
 
     move |buffer: &mut [char]| -> () {
         use_positions.clear();
