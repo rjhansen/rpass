@@ -9,11 +9,10 @@ url: "https://rjhansen.github.io" # the base hostname & protocol for your site, 
 github_username:  rjhansen
 
 # Build settings
-#theme: jekyll-pages-architect
+theme: jekyll-pages-architect
 plugins:
   - jekyll-feed
   - jekyll-remote-theme
-remote_theme: pages-themes/architect@v0.2.0
 
 # Exclude from processing.
 # The following items will not be processed, by default.
