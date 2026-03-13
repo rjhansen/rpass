@@ -45,7 +45,7 @@ required-features = []
 missing_docs = "warn"
 
 [lints.clippy]
-allow_attributes_without_reason = "warn"
+# allow_attributes_without_reason = "warn"
 branches_sharing_code = "warn"
 case_sensitive_file_extension_comparisons = "warn"
 cast_lossless = "warn"
@@ -68,8 +68,7 @@ doc_broken_link = "warn"
 doc_comment_double_space_linebreaks = "warn"
 doc_link_code = "warn"
 doc_link_with_quotes = "warn"
-doc_paragraphs_missing_punctuation = "warn"
-duration_suboptimal_units = "warn"
+#doc_paragraphs_missing_punctuation = "warn"
 elidable_lifetime_names = "warn"
 empty_enum_variants_with_brackets = "warn"
 empty_structs_with_brackets = "warn"

@@ -13,11 +13,11 @@ use zeroize::Zeroize;
 #[cfg(target_family = "unix")]
 fn zeroize_writeln(mut word: String) {
     let stream = rustix::stdio::stdout();
-    if rustix::io::write(stream, word.as_bytes()).is_ok() { () } else {
+    if rustix::io::write(stream, word.as_bytes()).is_ok() {} else {
         eprintln!("error: failed to write to stdout!");
         exit(1);
     }
-    if rustix::io::write(stream, b"\n").is_ok() { () } else {
+    if rustix::io::write(stream, b"\n").is_ok() {} else {
         eprintln!("error: failed to write to stdout!");
         exit(1);
     }
@@ -27,14 +27,14 @@ fn zeroize_writeln(mut word: String) {
 #[cfg(target_family = "unix")]
 fn zeroize_writespc(mut word: String) {
     let stream = rustix::stdio::stdout();
-    if rustix::io::write(stream, word.as_bytes()).is_ok() { () } else {
+    if rustix::io::write(stream, word.as_bytes()).is_ok() {} else {
         eprintln!("error: failed to write to stdout!");
         exit(1);
-    };
-    if rustix::io::write(stream, b" ").is_ok() { () } else {
+    }
+    if rustix::io::write(stream, b" ").is_ok() {} else {
         eprintln!("error: failed to write to stdout!");
         exit(1);
-    };
+    }
     word.zeroize();
 }
 

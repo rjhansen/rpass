@@ -133,7 +133,7 @@ pub fn parse_command_line() -> &'static Args {
 fn sanity_checks(args: &mut Args) {
     if args.remove.chars().count() > 16 {
         eprintln!(
-            r"error: the resulting passwords would be alarmingly low-entropy with that --remove set."
+            "error: the resulting passwords would be alarmingly low-entropy with that --remove set."
         );
         exit(1);
     }
@@ -173,7 +173,7 @@ fn sanity_checks(args: &mut Args) {
     }
     if args.secure {
         eprintln!(
-            r"info: the -s flag is unnecessary. pwgen would by default create passwords
+            "info: the -s flag is unnecessary. pwgen would by default create passwords
       from phonemes, but by passing -s it would abandon phonemes in favor
       of high-entropy random glyphs. rpass only generates high-entropy
       random glyphs. You may safely drop this flag from your pipeline."
@@ -187,14 +187,9 @@ fn sanity_checks(args: &mut Args) {
 #[must_use]
 pub fn get_count() -> u16 {
     let args = parse_command_line();
-    match args.count {
-        None => {
-            if args.multi_column {
-                (get_words_per_line(args.length.unwrap_or(8)) + 1) * 20
-            } else {
-                1
-            }
-        }
-        Some(count) => count,
-    }
+    args.count.unwrap_or_else(|| if args.multi_column {
+        (get_words_per_line(args.length.unwrap_or(8)) + 1) * 20
+    } else {
+        1
+    })
 }

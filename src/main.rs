@@ -2,14 +2,14 @@
 //! alternative to Ted Ts’o’s `pwgen` password generator. It is almost
 //! a drop-in replacement.
 
-mod character_generator;
+mod password;
 mod cmdline;
 mod printer;
 mod terminal;
 
 use cmdline::get_count;
 use printer::make_printer;
-use character_generator::PasswordGenerator;
+use password::PasswordGenerator;
 
 fn main() {
     let mut pw = PasswordGenerator::new();
