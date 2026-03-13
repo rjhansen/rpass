@@ -1,7 +1,7 @@
 //! Provides basic tools for probing terminal parameters.
 
-use terminal_size::{terminal_size, Height, Width};
 use crate::cmdline::parse_command_line;
+use terminal_size::{terminal_size, Height, Width};
 
 /// Returns the terminal width, if sane, or a reasonable alternative,
 /// if not.

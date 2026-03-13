@@ -3,6 +3,7 @@
 use crate::terminal;
 use clap::Parser;
 use std::process::exit;
+use std::sync::OnceLock;
 use terminal::get_words_per_line;
 
 /// Just a struct used to handle all the command line options.
@@ -117,12 +118,16 @@ pub struct Args {
     pub(crate) count: Option<u16>,
 }
 
+static ARGS: OnceLock<Args> = OnceLock::new();
+
 /// Parses a command line, yielding a validated Args struct.
 #[must_use]
-pub fn parse_command_line() -> Args {
-    let mut rv = Args::parse();
-    sanity_checks(&mut rv);
-    rv
+pub fn parse_command_line() -> &'static Args {
+    ARGS.get_or_init(|| {
+        let mut rv = Args::parse();
+        sanity_checks(&mut rv);
+        rv
+    })
 }
 
 fn sanity_checks(args: &mut Args) {
