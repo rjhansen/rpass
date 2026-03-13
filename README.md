@@ -40,10 +40,47 @@ and attached to the user’s monitor.
 We don’t live in that era any more. Passwords need to be resistant to brute force
 attacks, dictionary attacks, rainbow tables, and more. Users are encouraged to use
 password managers to help them keep track of all the different passwords they need
-to do their daily business.
+to do their daily business. Finally, advanced persistent threats exist in many 
+sysadmins’ environments, and password generators need to be written to be aggressive
+in how they zeroize memory before returning it to the system.
 
-With respect and a grateful nod of the head to Ted for `pwgen`, an overhaul is needed.
+With respect and a grateful nod of the head to Ted Ts’o for `pwgen`, an overhaul is 
+needed.
 
+## Quickstart
+
+`rpass` usage should be familiar to anyone who’s used `pwgen`.
+
+`rpass -1 16 8` displays sixteen-character passwords, eight of them, in a single column:
+
+```shell
+❯ rpass -1 16 8
+golZPZzCYZEzyUOn
+5c81wvlT/58lGDpu
+rw1sqWlOLJQ0dYQy
+qSJBM9EkSZAEFjtI
+A8Tb/YZhz5eQ3ErP
+YIJAiwgR25utOq69
+oOXCufI9DcdjyXsf
+0Zf3cZsJ/4vFjc0l
+```
+`rpass -C 8 40` displays eight-character passwords, forty of them, in multiple columns.
+(`rpass` is terminal-aware, so you might get more or fewer columns based on the width
+of your terminal.)
+
+```shell
+❯ rpass -C 8 36
+xVumsL1b VCpdj+Z/ lfTQna5Q dTNMCcu9 YJ5l57tU 1EWhV/Bn EkxNa/qg Chwh+bH9 BB3uGC6B
+hZ8d0cI3 8UtaMLMt gztBPcRa 6po3ePbU 4sYCicyy yuyNGEIY INpqTvc0 d+jvYOWp 7IzrdLZx
+SBD/0/Ol wcgGzW4U /nUKaS7C 6tmUNTdw S3bn5Bc3 OJg8TGTM YAcVs1mv tuhvpgKQ +y/yaqot
+UQeK6Ppi Aei5P4ec tsCaTs4E ahdsQbMS EA8LCPC4 dsg9Jv6F ljBofVtt M/EtC8qT ReBf4U0a
+```
+
+By default, `rpass` will generate twenty lines or 200 .
+
+```shell
+
+```
 ## Usage
 
 `rpass` is, as far as is reasonable, a drop-in replacement for `pwgen`. These
@@ -99,17 +136,42 @@ A few of these flags deserve special comment.
 * `LENGTH` must be in the range [6, 43] inclusive.
 * `COUNT` must be in the range [1, 10000] inclusive.
 
+## Why…
+
+### … does `-s` do nothing?
+
+`pwgen` gave users the option of generating passwords phonetically (by default)
+or via a random number generator (`-s`). Phonetic password generation is no longer
+a best practice in 2026, and for that reason all `rpass` passwords are generated
+with a cryptographically-secure pseudorandom number generator based off the 
+well-studied HC-128 stream cipher.
+
+`-s` is included as a command line flag so as to not break existing pipelines that
+use `pwgen`, but it’s a no-op.
+
+### … won't `-H` be supported?
+
+`-H` allowed a `pwgen` user to provide a filename (and optionally a seed value),
+using that file to generate a SHA-1 hash. That and the seed would be used for 
+random-_ish_ number generation. It was the worst of both worlds even pre-Y2K: you
+gave up the ease of remembering a phonetic password but didn’t have the entropic
+strength of a real CSPRNG-generated password. It was borderline-foolish even back
+then, and in 2026 it is simple tomfoolery.
+
+`-H` is included as a command line flag so as to not break existing pipelines that
+use `pwgen`, but it’s a no-op.
+
 ## Keylengths and Entropy
 
-| Desired entropy | Password length |
-|:---------------:|:---------------:|
-| 40              | 7               |
-| 64              | 11              |
-| 80              | 14              |
-| 96              | 16              |
-| 128             | 21              |
-| 192             | 32              |
-| 256             | 43              |
+| Desired entropy | Minimum password length |
+|:---------------:|:-----------------------:|
+| 40              |            7            |
+| 64              |           11            |
+| 80              |           14            |
+| 96              |           16            |
+| 128             |           21            |
+| 192             |           32            |
+| 256             |           43            |
 
 ## Output
 
@@ -118,11 +180,11 @@ preceding section(s) for warnings about how certain flags can undercut this prom
 
 ## How does it work?
 
-Rust’s default random number generator is believed to be cryptographically
+Rust’s `SysRng` random number generator is believed to be cryptographically
 secure. However, there are no guarantees made about the underlying implementation
 and I’d like a little control over that.
 
-So, we run our own cryptographically secure pseudorandom number generator
+We run our own cryptographically secure pseudorandom number generator
 based on the well-studied HC-128 stream cipher. To key it and set the
 initialization vector we use the Rust built-in RNG, but after that we’re
 running entirely HC-128.
@@ -142,12 +204,12 @@ each glyph we check if it meets must-exclude directives: if it’s acceptable it
 added to the password. If at any step we run out of random glyphs, we generate
 another set of 16,384 and continue.
 
-If must-include directives are in effect, those
-are dealt with last and are not part of our “six bits of entropy per glyph!”
-guarantee.
+If must-include directives are in effect, those are dealt with last and are not part
+of our “six bits of entropy per glyph!” guarantee.
 
 Once the password is assembled it’s printed to `stdout` and flushed. Once
-printed, the password is zeroized so as to reduce the forensics traces left in memory.
+printed, the password is zeroized so as to reduce the forensics traces left in 
+memory.
 
 Once all passwords are written, the byte buffer and string of random glyphs are
 zeroized. (The byte buffer was already zeroized; doing so on exit is just

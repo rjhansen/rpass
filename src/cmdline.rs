@@ -131,8 +131,6 @@ pub fn parse_command_line() -> &'static Args {
 }
 
 fn sanity_checks(args: &mut Args) {
-    args.multi_column = true;
-
     if args.remove.chars().count() > 16 {
         eprintln!(
             r"error: the resulting passwords would be alarmingly low-entropy with that --remove set."
@@ -192,7 +190,7 @@ pub fn get_count() -> u16 {
     match args.count {
         None => {
             if args.multi_column {
-                (get_words_per_line() + 1) * 20
+                (get_words_per_line(args.length.unwrap_or(8)) + 1) * 20
             } else {
                 1
             }

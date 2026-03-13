@@ -7,6 +7,7 @@ use rand::{seq::SliceRandom, Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
 use std::collections::HashSet;
 use std::process::exit;
+use rand::rngs::SysRng;
 use zeroize::Zeroize;
 use crate::cmdline::parse_command_line;
 
@@ -52,7 +53,10 @@ impl PasswordGenerator {
         let args = parse_command_line();
         let mut generator = PasswordGenerator {
             password_length: args.length.unwrap_or(8) as usize,
-            csprng: Hc128Rng::from_rng(&mut rand::rng()),
+            csprng: Hc128Rng::try_from_rng(&mut SysRng).unwrap_or_else(|_| {
+                    eprintln!("error: could not initialize random number generator!");
+                    exit(1);
+                }),
             char_buf: ['\0'; 16384],
             cbindex: 0,
             symbols: "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect(),

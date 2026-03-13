@@ -5,6 +5,7 @@
 //!
 //! `rustix` doesn't exist for Windows, so there we just give best effort.
 
+use std::process::exit;
 use crate::cmdline::{get_count, parse_command_line};
 use crate::terminal::get_words_per_line;
 use zeroize::Zeroize;
@@ -12,16 +13,28 @@ use zeroize::Zeroize;
 #[cfg(target_family = "unix")]
 fn zeroize_writeln(mut word: String) {
     let stream = rustix::stdio::stdout();
-    let _ = rustix::io::write(stream, word.as_bytes());
-    let _ = rustix::io::write(stream, b"\n");
+    if rustix::io::write(stream, word.as_bytes()).is_ok() { () } else {
+        eprintln!("error: failed to write to stdout!");
+        exit(1);
+    }
+    if rustix::io::write(stream, b"\n").is_ok() { () } else {
+        eprintln!("error: failed to write to stdout!");
+        exit(1);
+    }
     word.zeroize();
 }
 
 #[cfg(target_family = "unix")]
 fn zeroize_writespc(mut word: String) {
     let stream = rustix::stdio::stdout();
-    let _ = rustix::io::write(stream, word.as_bytes());
-    let _ = rustix::io::write(stream, b" ");
+    if rustix::io::write(stream, word.as_bytes()).is_ok() { () } else {
+        eprintln!("error: failed to write to stdout!");
+        exit(1);
+    };
+    if rustix::io::write(stream, b" ").is_ok() { () } else {
+        eprintln!("error: failed to write to stdout!");
+        exit(1);
+    };
     word.zeroize();
 }
 
@@ -43,7 +56,7 @@ fn zeroize_writespc(mut word: String) {
 pub fn make_printer() -> impl FnMut(String) {
     let args = parse_command_line();
     let count = get_count();
-    let wpl = get_words_per_line();
+    let wpl = get_words_per_line(args.length.unwrap_or(8));
     let mut index = 0;
     let mut remaining_in_line = wpl;
 

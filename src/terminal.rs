@@ -1,6 +1,5 @@
 //! Provides basic tools for probing terminal parameters.
 
-use crate::cmdline::parse_command_line;
 use terminal_size::{terminal_size, Height, Width};
 
 /// Returns the terminal width, if sane, or a reasonable alternative,
@@ -26,14 +25,12 @@ pub fn get_terminal_width() -> u16 {
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
-pub fn get_words_per_line() -> u16 {
-    let args = parse_command_line();
+pub fn get_words_per_line(len: u16) -> u16 {
     let tw = get_terminal_width();
-    let len = args.length.unwrap_or(8);
     if tw <= len {
         return 1;
     }
-    let tw = f32::from(tw + 1);
+    let tw = f32::from(tw);
     let l = f32::from(len + 1);
     ((tw / l).floor() as u16).max(1)
 }
