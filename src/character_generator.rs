@@ -1,161 +1,155 @@
-use crate::cmdline;
+//! Implements closures that abstract away all the messy details of safely
+//! generating passwords.
+
 use base64::engine::{general_purpose, GeneralPurpose};
 use base64::{alphabet, Engine};
-use cmdline::Args;
 use rand::{seq::SliceRandom, Rng, RngExt, SeedableRng};
 use rand_hc::Hc128Rng;
-use std::cell::RefCell;
 use std::collections::HashSet;
-use std::rc::Rc;
-use std::sync::{LazyLock, Mutex};
 use zeroize::Zeroize;
+use crate::cmdline::parse_command_line;
 
-pub static CSPRNG: LazyLock<Mutex<Hc128Rng>> =
-    LazyLock::new(|| Mutex::new(Hc128Rng::from_rng(&mut rand::rng())));
+const B64: GeneralPurpose = GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
 
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::needless_pass_by_value)]
-pub fn make_password_generator(args: Args) -> (impl FnMut(&mut String), impl FnMut()) {
-    let mut satisfy_policies = make_satisfier(args.clone());
-    let (mut generator, finalizer) = make_character_generator(args.clone());
-    let length = args.length.unwrap_or(8);
-    let mut buf = ['\0'; 1024];
-
-    // this is enforced in cmdline.rs
-    debug_assert!(length as usize <= buf.len());
-
-    (
-        move |password: &mut String| {
-            buf.zeroize();
-            password.zeroize();
-            password.truncate(0);
-            password.reserve((length + 1) as usize);
-            for index in 0..length {
-                buf[index as usize] = generator();
-            }
-            satisfy_policies(&mut buf[0..length as usize]);
-            for index in 0..length {
-                password.push(buf[index as usize]);
-            }
-            buf.zeroize();
-        },
-        finalizer,
-    )
+/// Encapsulates all data needed to generate passwords.
+pub struct PasswordGenerator {
+    password_length: usize,
+    csprng: Hc128Rng,
+    char_buf: [char; 16384],
+    cbindex: usize,
+    symbols: Vec<char>,
+    capitals: Vec<char>,
+    numbers: Vec<char>,
+    ensure_symbols: bool,
+    ensure_capitals: bool,
+    ensure_numbers: bool,
+    remove_set: HashSet::<char>,
+    vowels: HashSet::<char>,
+    ambiguous: HashSet::<char>,
+    no_capitals: bool,
+    no_numbers: bool,
+    no_ambiguous: bool,
+    no_vowels: bool,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn make_satisfier(args: Args) -> impl FnMut(&mut [char]) {
-    // These are taken directly from pwgen.
-    let symbols: Vec<char> = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect();
-    let capitals: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
-    let numbers: Vec<char> = "0123456789".chars().collect();
+impl Drop for PasswordGenerator {
+    fn drop(&mut self) {
+        self.char_buf.zeroize();
+        self.cbindex = 0;
+    }
+}
 
-    let ensure_symbols = args.ensure_symbols;
-    let ensure_capitals = args.ensure_capitals;
-    let ensure_numbers = args.ensure_numbers;
+impl PasswordGenerator {
+    /// Creates a new PasswordGenerator object using data from the command line.
+    pub fn new() -> PasswordGenerator {
+        let args = parse_command_line();
+        let _cb = ['\0'; 16384];
+        let mut foo = PasswordGenerator {
+            password_length: args.length.unwrap_or(8) as usize,
+            csprng: Hc128Rng::from_rng(&mut rand::rng()),
+            char_buf: _cb,
+            cbindex: 0,
+            symbols: "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect(),
+            capitals: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect(),
+            numbers: "0123456789".chars().collect(),
+            ensure_capitals: args.ensure_capitals,
+            ensure_numbers: args.ensure_numbers,
+            ensure_symbols: args.ensure_symbols,
+            remove_set: HashSet::<char>::new(),
+            vowels: HashSet::<char>::new(),
+            ambiguous: HashSet::<char>::new(),
+            no_capitals: args.no_capitals,
+            no_numbers: args.no_numbers,
+            no_ambiguous: args.no_ambiguous,
+            no_vowels: args.no_vowels
+        };
+        args.remove.chars().for_each(|x| {
+            _ = foo.remove_set.insert(x);
+        });
+        "aeiouyAEIOUY".to_string().chars().for_each(|x| {
+            _ = foo.vowels.insert(x);
+        });
+        "B8G6I1l0OQDS5Z2".to_string().chars().for_each(|x| {
+            _ = foo.ambiguous.insert(x);
+        });
+        foo.replenish_pool();
+        foo
+    }
 
-    let mut use_positions = vec![0; args.length.unwrap_or(8) as usize];
+    fn filter(self: &PasswordGenerator, ch: &char) -> bool {
+        !((self.no_capitals && ch.is_ascii_uppercase())
+            || (self.no_numbers && ch.is_ascii_digit())
+            || (self.no_vowels && self.vowels.contains(ch))
+            || (self.no_ambiguous && self.ambiguous.contains(ch))
+            || self.remove_set.contains(ch))
+    }
 
-    move |buffer: &mut [char]| -> () {
+    fn replenish_pool(self: &mut PasswordGenerator) {
+        let mut byte_buf = [0u8; 12288];
+        self.char_buf.zeroize();
+        self.cbindex = 0;
+        self.csprng.fill_bytes(&mut byte_buf);
+        let mut tmp_str = B64.encode(byte_buf);
+        let mut iter = tmp_str.chars();
+        for index in 0..16384 {
+            self.char_buf[index] = iter.next().unwrap();
+        }
+        tmp_str.zeroize();
+        byte_buf.zeroize();
+    }
+
+    fn satisfy_policies(self: &mut PasswordGenerator, buf: &mut [char]) {
+        let mut use_positions = vec![0 as usize; self.password_length];
         use_positions.clear();
-        for index in 0..buffer.len() {
-            use_positions.push(index);
-        }
-        {
-            let mut random = CSPRNG.lock().unwrap();
-            use_positions.shuffle(&mut random);
-        }
+        for index in 0..use_positions.len() { use_positions[index] = index; }
+        use_positions.shuffle(&mut self.csprng);
 
-        let mut pos_iter = use_positions.iter();
-        if ensure_symbols {
-            let buf_pos = *pos_iter.next().unwrap();
-            let char_idx = CSPRNG.lock().unwrap().random_range(0..symbols.len());
-            buffer[buf_pos] = symbols[char_idx];
+        // use_positions[0] = what pos to use for symbol replacement
+        // use_positions[1] = what pos to use for capital replacement
+        // use_positions[2] = what pos to use for numeric replacement
+        //
+        // Since use_positions is a Fisher-Yates shuffle of a buffer
+        // initially populated as 0..args.length, we're guaranteed these
+        // three positions will be distinct and randomly selected.
+
+        if self.ensure_symbols {
+            buf[use_positions[0]] = self.symbols[self.csprng.random_range(0..self.symbols.len())];
         }
-        if ensure_capitals {
-            let buf_pos = *pos_iter.next().unwrap();
-            let char_idx = CSPRNG.lock().unwrap().random_range(0..capitals.len());
-            buffer[buf_pos] = capitals[char_idx];
+        if self.ensure_capitals {
+            buf[use_positions[1]] = self.capitals[self.csprng.random_range(0..self.capitals.len())];
         }
-        if ensure_numbers {
-            let buf_pos = *pos_iter.next().unwrap();
-            let char_idx = CSPRNG.lock().unwrap().random_range(0..numbers.len());
-            buffer[buf_pos] = numbers[char_idx];
+        if self.ensure_numbers {
+            buf[use_positions[2]] = self.numbers[self.csprng.random_range(0..self.numbers.len())];
         }
         use_positions.zeroize();
     }
-}
 
-#[allow(clippy::needless_pass_by_value)]
-fn make_filter(args: Args) -> impl Fn(&char) -> bool {
-    let mut remove_set = HashSet::<char>::new();
-    let mut vowels = HashSet::<char>::new();
-    let mut ambiguous = HashSet::<char>::new();
-    args.remove.chars().for_each(|x| {
-        _ = &remove_set.insert(x);
-    });
-    "aeiouyAEIOUY".to_string().chars().for_each(|x| {
-        _ = vowels.insert(x);
-    });
-    "B8G6I1l0OQDS5Z2".to_string().chars().for_each(|x| {
-        _ = ambiguous.insert(x);
-    });
-    move |ch: &char| -> bool {
-        !((args.no_capitals && ch.is_ascii_uppercase())
-            || (args.no_numbers && ch.is_ascii_digit())
-            || (args.no_vowels && vowels.contains(ch))
-            || (args.no_ambiguous && ambiguous.contains(ch))
-            || remove_set.contains(ch))
-    }
-}
-
-#[allow(clippy::similar_names)]
-#[allow(clippy::needless_pass_by_value)]
-fn make_character_generator(args: Args) -> (impl FnMut() -> char, impl FnMut()) {
-    const BUFFER_SIZE: usize = 12288;
-    const ENGINE: GeneralPurpose =
-        GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
-    let filter = make_filter(args.clone());
-    let random_byte_buffer = [0u8; BUFFER_SIZE];
-    let rbb_cell = Rc::new(RefCell::new(random_byte_buffer));
-    let rcb_cell = Rc::new(RefCell::new(Vec::with_capacity(BUFFER_SIZE * 4 / 3)));
-    let mut rcb_index: usize = 0;
-
-    let rb1 = rbb_cell.clone();
-    let rb2 = rbb_cell.clone();
-    let rc1 = rcb_cell.clone();
-    let rc2 = rcb_cell.clone();
-
-    (
-        move || -> char {
-            let mut ch: char;
+    /// Generates a single policy conforming to what’s specified on the
+    /// command line.
+    pub fn generate(&mut self) -> String {
+        let mut buf = ['\0'; 64];
+        let mut password = String::new();
+        password.zeroize();
+        password.truncate(0);
+        password.reserve(self.password_length);
+        for index in 0..self.password_length {
             loop {
-                let mut rbb = rb1.borrow_mut();
-                let mut rcb = rc1.borrow_mut();
-                if rcb_index >= rcb.len() {
-                    rbb.zeroize();
-                    rcb.zeroize();
-                    rcb.clear();
-                    rcb_index = 0;
-                    CSPRNG.lock().unwrap().fill_bytes(&mut *rbb);
-                    let mut tmp_str = ENGINE.encode(*rbb);
-                    tmp_str.chars().for_each(|x| rcb.push(x));
-                    tmp_str.zeroize();
-                    rbb.zeroize();
+                if self.cbindex >= 16384 {
+                    self.replenish_pool()
                 }
-                ch = rcb[rcb_index];
-                rcb_index += 1;
-                if filter(&ch) {
+                let ch = self.char_buf[self.cbindex];
+                self.cbindex += 1;
+                if self.filter(&ch) {
+                    buf[index] = ch;
                     break;
                 }
             }
-            ch
-        },
-        move || -> () {
-            let mut rbb = rb2.borrow_mut();
-            let mut rcb = rc2.borrow_mut();
-            rbb.zeroize();
-            rcb.zeroize();
-        },
-    )
+        }
+        self.satisfy_policies(&mut buf[0..self.password_length]);
+        for index in 0..self.password_length {
+            password.push(buf[index as usize]);
+        }
+        buf.zeroize();
+        password
+    }
 }

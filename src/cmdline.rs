@@ -1,8 +1,11 @@
+//! Processes the command line and enforces basic sanity checking.
+
 use crate::terminal;
 use clap::Parser;
 use std::process::exit;
 use terminal::get_words_per_line;
 
+/// Just a struct used to handle all the command line options.
 #[derive(Parser, Debug, Clone)]
 #[command(
     author = "Robert J. Hansen <rob@hansen.engineering>",
@@ -114,6 +117,7 @@ pub struct Args {
     pub(crate) count: Option<u16>,
 }
 
+/// Parses a command line, yielding a validated Args struct.
 #[must_use]
 pub fn parse_command_line() -> Args {
     let mut rv = Args::parse();
@@ -174,12 +178,16 @@ fn sanity_checks(args: &mut Args) {
     }
 }
 
+/// Retrieve the desired number of passwords. Note that we emulate
+/// `pwgen`'s behavior of “by default, give 20 rows of multicolumn
+/// text to saturate the terminal.”
 #[must_use]
-pub fn get_count(args: &Args) -> u16 {
+pub fn get_count() -> u16 {
+    let args = parse_command_line();
     match args.count {
         None => {
             if args.multi_column {
-                (get_words_per_line(args) + 1) * 20
+                (get_words_per_line() + 1) * 20
             } else {
                 1
             }

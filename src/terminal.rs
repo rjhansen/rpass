@@ -1,7 +1,10 @@
-use crate::cmdline;
-use cmdline::Args;
-use terminal_size::{terminal_size, Height, Width};
+//! Provides basic tools for probing terminal parameters.
 
+use terminal_size::{terminal_size, Height, Width};
+use crate::cmdline::parse_command_line;
+
+/// Returns the terminal width, if sane, or a reasonable alternative,
+/// if not.
 #[must_use]
 pub fn get_terminal_width() -> u16 {
     match terminal_size() {
@@ -18,10 +21,13 @@ pub fn get_terminal_width() -> u16 {
     }
 }
 
+/// Answers the age-old question, “how many passwords of the user’s
+/// specified length can fit on a line of this terminal?”
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
-pub fn get_words_per_line(args: &Args) -> u16 {
+pub fn get_words_per_line() -> u16 {
+    let args = parse_command_line();
     let tw = get_terminal_width();
     let len = args.length.unwrap_or(8);
     if tw <= len {
