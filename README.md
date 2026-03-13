@@ -2,6 +2,15 @@
 
 ## _… because random passwords shouldn’t be left to chance._
 
+---
+[![forthebadge made-with-rust](http://ForTheBadge.com/images/badges/made-with-rust.svg)](https://www.rust-lang.org/)
+
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+
+![Maintainer](https://img.shields.io/badge/maintainer-rjhansen-blue)
+
+[![GitHub license](https://img.shields.io/github/license/rjhansen/rpass.svg)](https://github.com/rjhansen/rpass/blob/main/LICENSE)
+
 ## Supported systems
 
 * Apple macOS (tested on an M4 MacBook Pro running macOS 26.3.1 (Tahoe))
