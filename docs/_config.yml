@@ -9,7 +9,7 @@ url: "https://rjhansen.github.io" # the base hostname & protocol for your site, 
 github_username:  rjhansen
 
 # Build settings
-remote_theme: pages-themes/dinky@v0.2.0
+theme: jekyll-theme-dinky
 plugins:
   - jekyll-feed
   - jekyll-remote-theme
