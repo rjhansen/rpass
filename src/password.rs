@@ -143,9 +143,9 @@ impl PasswordGenerator {
         let mut indices: Vec<usize> = (0..self.password_length).collect();
         indices.shuffle(&mut self.csprng);
 
-        // use_positions[0] = what pos to use for symbol replacement
-        // use_positions[1] = what pos to use for capital replacement
-        // use_positions[2] = what pos to use for numeric replacement
+        // indices[0] = what pos to use for symbol replacement
+        // indices[1] = what pos to use for capital replacement
+        // indices[2] = what pos to use for numeric replacement
         //
         // Since use_positions is a Fisher-Yates shuffle of a buffer
         // initially populated as 0..args.length, we're guaranteed these
