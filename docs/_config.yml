@@ -4,8 +4,8 @@ description: >- # this means to ignore newlines until "baseurl:"
   rpass is a drop-in replacement for Ted Ts’o’s pwgen utility. Written in Rust,
   it offers strong guarantees of randomness, memory safety, and resistance to
   memory forensics.
-# baseurl: "rpass" # the subpath of your site, e.g. /blog
-# url: "https://rjhansen.github.io" # the base hostname & protocol for your site, e.g. http://example.com
+baseurl: "/rpass" # the subpath of your site, e.g. /blog
+url: "https://rjhansen.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  rjhansen
 
 # Build settings
