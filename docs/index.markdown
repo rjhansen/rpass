@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # rpass
 
 ## _… because random passwords shouldn’t be left to chance._
