@@ -9,7 +9,7 @@ description: >- # this means to ignore newlines until "baseurl:"
 github_username:  rjhansen
 
 # Build settings
-theme: jekyll-theme-architect
+theme: jekyll-theme-dinky
 plugins:
   - jekyll-feed
   - jekyll-remote-theme
