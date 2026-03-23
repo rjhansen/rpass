@@ -1,6 +1,6 @@
 //! Provides basic tools for probing terminal parameters.
 
-use terminal_size::{terminal_size, Height, Width};
+use terminal_size::{Height, Width, terminal_size};
 
 /// Returns the terminal width, if sane, or a reasonable alternative,
 /// if not.
@@ -30,7 +30,7 @@ pub fn get_words_per_line(len: u16) -> u16 {
     if tw <= len {
         return 1;
     }
-    let tw = f32::from(tw);
-    let l = f32::from(len + 1);
-    ((tw / l).floor() as u16).max(1)
+    let w = f32::from(tw);
+    let p = f32::from(len);
+    ((w - p) / (p + 1.0)).floor() as u16
 }
