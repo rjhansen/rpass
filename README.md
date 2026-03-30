@@ -55,11 +55,11 @@ and attached to the user’s monitor.
 We don’t live in that era any more. Passwords need to be resistant to brute force
 attacks, dictionary attacks, rainbow tables, and more. Users are encouraged to use
 password managers to help them keep track of all the different passwords they need
-to do their daily business. Finally, advanced persistent threats exist in many 
+to do their daily business. Finally, advanced persistent threats exist in many
 sysadmins’ environments, and password generators need to be written to be aggressive
 in how they zeroize memory before returning it to the system.
 
-With respect and a grateful nod of the head to Ted Ts’o for `pwgen`, an overhaul is 
+With respect and a grateful nod of the head to Ted Ts’o for `pwgen`, an overhaul is
 needed.
 
 ## Quickstart
@@ -169,7 +169,7 @@ Because 256-bit passwords will be secure until computers are made of something
 other than matter, occupy something other than space, run in something other than
 time, according to something other than the laws of thermodynamics.
 
-According to our best understanding of the universe, non-adiabatic computing (the 
+According to our best understanding of the universe, non-adiabatic computing (the
 kind we know how to do efficiently: all our computers, even Google's cutting-edge
 quantum ones, are non-adiabatic) flat-out requires a certain amount of heat to be
 liberated each time you erase a bit of information. That number is really small:
@@ -197,17 +197,17 @@ energy liberated in a supernova explosion. One foe is 10⁴⁴ joules.
 
 2.61 ⋅ 10⁵⁴ joules ≈ 2.61 ⋅ 10¹⁰ foes ≈ 26,100,000,000 supernovae
 
-To brute force a 256-bit key requires detonating a quarter of the stars in the 
+To brute force a 256-bit key requires detonating a quarter of the stars in the
 Milky Way _just to pay the universe’s tax bill on the computation._
 
-This is a silly idea and it is not happening until we find some way to suspend the 
+This is a silly idea and it is not happening until we find some way to suspend the
 Second Law of Thermodynamics.
 
 ### … aren’t you worried about quantum computers?
 
 If it ever becomes possible to build a large-scale quantum computer, it will be
 able to brute-force a 256-bit key in only roughly 2¹²⁸ attempts. I invite you to
-repeat the classical computer analysis for a quantum computer running 
+repeat the classical computer analysis for a quantum computer running
 [Grover’s algorithm](https://en.wikipedia.org/wiki/Grover%27s_algorithm). It is true
 it requires much less energy to be liberated as heat, but the levels are still
 unimaginably large.
@@ -217,8 +217,8 @@ unimaginably large.
 `pwgen` gave users the option of generating passwords phonetically (by default)
 or via a random number generator (`-s`). Phonetic password generation is no longer
 a best practice in 2026, and for that reason all `rpass` passwords are generated
-with a cryptographically-secure pseudorandom number generator based off the 
-well-studied HC-128 stream cipher.
+with a cryptographically-secure pseudorandom number generator based off the
+well-studied ChaCha20 stream cipher.
 
 `-s` is included as a command line flag so as to not break existing pipelines that
 use `pwgen`, but it’s a no-op.
@@ -226,7 +226,7 @@ use `pwgen`, but it’s a no-op.
 ### … won't `-H` be supported?
 
 `-H` allowed a `pwgen` user to provide a filename (and optionally a seed value),
-using that file to generate a SHA-1 hash. That and the seed would be used for 
+using that file to generate a SHA-1 hash. That and the seed would be used for
 random-_ish_ number generation. It was the worst of both worlds even pre-Y2K: you
 gave up the ease of remembering a phonetic password but didn’t have the entropic
 strength of a real CSPRNG-generated password. It was borderline-foolish even back
@@ -259,9 +259,9 @@ secure. However, there are no guarantees made about the underlying implementatio
 and I’d like a little control over that.
 
 We run our own cryptographically secure pseudorandom number generator
-based on the well-studied HC-128 stream cipher. To key it and set the
+based on the well-studied ChaCha20 stream cipher. To key it and set the
 initialization vector we use the Rust built-in RNG, but after that we’re
-running entirely HC-128.
+running entirely ChaCha20.
 
 We populate a fixed-size buffer with cryptographically secure pseudorandom
 noise, eight bits of entropy per byte. We then base64 the buffer into a UTF-8
@@ -282,7 +282,7 @@ If must-include directives are in effect, those are dealt with last and are not 
 of our “six bits of entropy per glyph!” guarantee.
 
 Once the password is assembled it’s printed to `stdout` and flushed. Once
-printed, the password is zeroized so as to reduce the forensics traces left in 
+printed, the password is zeroized so as to reduce the forensics traces left in
 memory.
 
 Once all passwords are written, the byte buffer and string of random glyphs are
