@@ -2,11 +2,11 @@
 //! generating passwords.
 
 use crate::cmdline::{Args, parse_command_line};
-use base64::engine::{general_purpose, GeneralPurpose};
-use base64::{alphabet, Engine};
+use base64::engine::{GeneralPurpose, general_purpose};
+use base64::{Engine, alphabet};
 use rand::rngs::SysRng;
-use rand::{seq::SliceRandom, Rng, RngExt, SeedableRng};
-use rand_hc::Hc128Rng;
+use rand::{Rng, RngExt, SeedableRng, seq::SliceRandom};
+use rand_chacha::ChaCha20Rng;
 use std::collections::HashSet;
 use std::process::exit;
 use std::sync::{LazyLock, Mutex};
@@ -37,7 +37,7 @@ static AMBIGUOUS: LazyLock<Mutex<HashSet<char>>> = LazyLock::new(|| {
 /// Encapsulates all data needed to generate passwords.
 pub struct PasswordGenerator {
     password_length: usize,
-    csprng: Hc128Rng,
+    csprng: ChaCha20Rng,
     char_buf: [char; 0x4000],
     cbindex: usize,
     ensure_symbols: bool,
@@ -68,10 +68,10 @@ impl PasswordGenerator {
     pub fn new_from_args(args: &Args) -> Self {
         let mut generator = Self {
             password_length: args.length.unwrap_or(8) as usize,
-            csprng: Hc128Rng::try_from_rng(&mut SysRng).unwrap_or_else(|_| {
-                    eprintln!("error: could not initialize random number generator!");
-                    exit(1);
-                }),
+            csprng: ChaCha20Rng::try_from_rng(&mut SysRng).unwrap_or_else(|_| {
+                eprintln!("error: could not initialize random number generator!");
+                exit(1);
+            }),
             char_buf: ['\0'; 0x4000],
             cbindex: 0,
             ensure_capitals: args.ensure_capitals,
@@ -81,7 +81,7 @@ impl PasswordGenerator {
             no_capitals: args.no_capitals,
             no_numbers: args.no_numbers,
             no_ambiguous: args.no_ambiguous,
-            no_vowels: args.no_vowels
+            no_vowels: args.no_vowels,
         };
         for ch in args.remove.chars() {
             generator.remove_set.insert(ch);
@@ -127,16 +127,18 @@ impl PasswordGenerator {
 
     fn replenish_pool(&mut self) {
         let mut byte_buf = [0u8; 12288];
+        // This should be unnecessary, as we zeroize sensitive memory
+        // as it's used. Still, belt and suspenders engineering…
         self.char_buf.zeroize();
         self.cbindex = 0;
         self.csprng.fill_bytes(&mut byte_buf);
         let mut tmp_str = B64.encode(byte_buf);
+        byte_buf.zeroize();
         let mut iter = tmp_str.chars();
         for index in 0..0x4000 {
             self.char_buf[index] = iter.next().expect("char buffer exhausted");
         }
         tmp_str.zeroize();
-        byte_buf.zeroize();
     }
 
     fn satisfy_policies(&mut self, buf: &mut [char]) {
@@ -182,6 +184,7 @@ impl PasswordGenerator {
                     self.replenish_pool();
                 }
                 let ch = self.char_buf[self.cbindex];
+                self.char_buf[self.cbindex].zeroize();
                 self.cbindex += 1;
                 if self.filter(&ch) {
                     buf[index] = ch;
