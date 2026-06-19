@@ -6,6 +6,9 @@ use std::process::exit;
 use std::sync::OnceLock;
 use terminal::get_words_per_line;
 
+pub const MAX_PASSWORD_LENGTH: u16 = 43;
+pub const MIN_PASSWORD_LENGTH: u16 = 6;
+
 /// Just a struct used to handle all the command line options.
 #[derive(Parser, Debug, Clone)]
 #[command(
@@ -14,7 +17,7 @@ use terminal::get_words_per_line;
     about,
     name = "rpass",
     about = "Generates high-entropy passwords.",
-    long_about = "Constructs cryptographically strong passwords using the HC128\nstream cipher.",
+    long_about = "Constructs cryptographically strong passwords.",
     help_template = "\
 {before-help}{name} {version}
 {about-with-newline}
@@ -163,8 +166,11 @@ fn sanity_checks(args: &mut Args) {
     }
     let length = args.length.unwrap_or(8);
     let count = args.count.unwrap_or(1);
-    if !(6..=43).contains(&length) {
-        eprintln!("error: length must be in the range [6, 43].");
+    if !(MIN_PASSWORD_LENGTH..=MAX_PASSWORD_LENGTH).contains(&length) {
+        eprintln!(
+            "error: length must be in the range [{}, {}].",
+            MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+        );
         exit(1);
     }
     if !(1..=10000).contains(&count) {
@@ -187,9 +193,11 @@ fn sanity_checks(args: &mut Args) {
 #[must_use]
 pub fn get_count() -> u16 {
     let args = parse_command_line();
-    args.count.unwrap_or_else(|| if args.multi_column {
-        (get_words_per_line(args.length.unwrap_or(8)) + 1) * 20
-    } else {
-        1
+    args.count.unwrap_or_else(|| {
+        if args.multi_column {
+            (get_words_per_line(args.length.unwrap_or(8)) + 1) * 20
+        } else {
+            1
+        }
     })
 }

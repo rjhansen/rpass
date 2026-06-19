@@ -1,7 +1,7 @@
 //! Implements closures that abstract away all the messy details of safely
 //! generating passwords.
 
-use crate::cmdline::{Args, parse_command_line};
+use crate::cmdline::{Args, MAX_PASSWORD_LENGTH, parse_command_line};
 use base64::engine::{GeneralPurpose, general_purpose};
 use base64::{Engine, alphabet};
 use rand::rngs::SysRng;
@@ -9,30 +9,17 @@ use rand::{Rng, RngExt, SeedableRng, seq::SliceRandom};
 use rand_chacha::ChaCha20Rng;
 use std::collections::HashSet;
 use std::process::exit;
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
 use zeroize::Zeroize;
 
 const B64: GeneralPurpose = GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
-static SYMBOLS: LazyLock<Mutex<Vec<char>>> = LazyLock::new(|| {
-    let sym: Vec<char> = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect();
-    Mutex::new(sym)
-});
-static CAPITALS: LazyLock<Mutex<Vec<char>>> = LazyLock::new(|| {
-    let caps: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
-    Mutex::new(caps)
-});
-static NUMBERS: LazyLock<Mutex<Vec<char>>> = LazyLock::new(|| {
-    let nums: Vec<char> = "0123456789".chars().collect();
-    Mutex::new(nums)
-});
-static VOWELS: LazyLock<Mutex<HashSet<char>>> = LazyLock::new(|| {
-    let vowels: HashSet<char> = "aeiouAEIOU".chars().collect();
-    Mutex::new(vowels)
-});
-static AMBIGUOUS: LazyLock<Mutex<HashSet<char>>> = LazyLock::new(|| {
-    let ambiguous: HashSet<char> = "B8G6I1l0OQDS5Z2".chars().collect();
-    Mutex::new(ambiguous)
-});
+static SYMBOLS: LazyLock<Vec<char>> =
+    LazyLock::new(|| "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".chars().collect());
+static CAPITALS: LazyLock<Vec<char>> =
+    LazyLock::new(|| "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect());
+static NUMBERS: LazyLock<Vec<char>> = LazyLock::new(|| "0123456789".chars().collect());
+static VOWELS: LazyLock<HashSet<char>> = LazyLock::new(|| "aeiouAEIOU".chars().collect());
+static AMBIGUOUS: LazyLock<HashSet<char>> = LazyLock::new(|| "B8G6I1l0OQDS5Z2".chars().collect());
 
 /// Encapsulates all data needed to generate passwords.
 pub struct PasswordGenerator {
@@ -87,9 +74,9 @@ impl PasswordGenerator {
             generator.remove_set.insert(ch);
         }
         {
-            let syms = SYMBOLS.lock().expect("mutex poisoned");
-            let nums = NUMBERS.lock().expect("mutex poisoned");
-            let caps = CAPITALS.lock().expect("mutex poisoned");
+            let syms = &*SYMBOLS;
+            let nums = &*NUMBERS;
+            let caps = &*CAPITALS;
             if generator.ensure_symbols && syms.iter().all(|c| !generator.filter(c)) {
                 eprintln!("error: symbols are required, but all were excluded");
                 exit(1);
@@ -120,8 +107,8 @@ impl PasswordGenerator {
     fn filter(&self, ch: &char) -> bool {
         !((self.no_capitals && ch.is_ascii_uppercase())
             || (self.no_numbers && ch.is_ascii_digit())
-            || (self.no_vowels && VOWELS.lock().expect("mutex poisoned").contains(ch))
-            || (self.no_ambiguous && AMBIGUOUS.lock().expect("mutex poisoned").contains(ch))
+            || (self.no_vowels && VOWELS.contains(ch))
+            || (self.no_ambiguous && AMBIGUOUS.contains(ch))
             || self.remove_set.contains(ch))
     }
 
@@ -154,17 +141,17 @@ impl PasswordGenerator {
         // three positions will be distinct and randomly selected.
 
         if self.ensure_symbols {
-            let symvec = SYMBOLS.lock().expect("mutex poisoned");
+            let symvec = &*SYMBOLS;
             let cands: Vec<&char> = symvec.iter().filter(|c| self.filter(c)).collect();
             buf[indices[0]] = *cands[self.csprng.random_range(0..cands.len())];
         }
         if self.ensure_capitals {
-            let capvec = CAPITALS.lock().expect("mutex poisoned");
+            let capvec = &*CAPITALS;
             let cands: Vec<&char> = capvec.iter().filter(|c| self.filter(c)).collect();
             buf[indices[1]] = *cands[self.csprng.random_range(0..cands.len())];
         }
         if self.ensure_numbers {
-            let numvec = NUMBERS.lock().expect("mutex poisoned");
+            let numvec = &*NUMBERS;
             let cands: Vec<&char> = numvec.iter().filter(|c| self.filter(c)).collect();
             buf[indices[2]] = *cands[self.csprng.random_range(0..cands.len())];
         }
@@ -175,7 +162,7 @@ impl PasswordGenerator {
     /// command line.
     #[allow(clippy::needless_range_loop)]
     pub fn generate(&mut self) -> String {
-        let mut buf = ['\0'; 43];
+        let mut buf = ['\0'; MAX_PASSWORD_LENGTH as usize];
         let mut password = String::new();
         password.reserve(self.password_length);
         for index in 0..self.password_length {
@@ -183,13 +170,14 @@ impl PasswordGenerator {
                 if self.cbindex >= 0x4000 {
                     self.replenish_pool();
                 }
-                let ch = self.char_buf[self.cbindex];
+                let mut ch = self.char_buf[self.cbindex];
                 self.char_buf[self.cbindex].zeroize();
                 self.cbindex += 1;
                 if self.filter(&ch) {
                     buf[index] = ch;
                     break;
                 }
+                ch.zeroize();
             }
         }
         self.satisfy_policies(&mut buf[0..self.password_length]);

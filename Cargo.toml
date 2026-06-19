@@ -1,9 +1,9 @@
 [package]
 name = "rpass"
-version = "1.2.2"
+version = "1.2.3"
 edition = "2024"
 authors = ["Robert J. Hansen <rob@hansen.engineering>"]
-description = "Constructs strong passwords using the ChaCha20 random number generator."
+description = "Constructs cryptographically strong random passwords."
 repository = "https://github.com/rjhansen/rpass"
 license = "Apache-2.0"
 exclude = [
