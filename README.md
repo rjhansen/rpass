@@ -13,7 +13,7 @@
 
 ## Supported systems
 
-* Apple macOS (tested on an M4 MacBook Pro running macOS 26.3.1 (Tahoe))
+* Apple macOS (tested on an M4 MacBook Pro running macOS 26.5.1 (Tahoe))
 * Linux (tested on an x86_64 machine running Fedora 43)
 * Windows (tested on an x86_64 machine running Windows 11)
 
@@ -100,7 +100,7 @@ passwords. `rpass -1` by itself will generate just one password.
 command-line arguments should look familiar:
 
 ```
-rpass 1.2.1
+rpass 1.2.3
 Generates high-entropy passwords.
 
 Usage: rpass [OPTIONS] [LENGTH] [COUNT]
@@ -178,9 +178,9 @@ the environment multiplied by the natural logarithm of two) per bit, but it’s 
 
 | Constant |                                          Value                                           |
 |:--------:|:----------------------------------------------------------------------------------------:|
-|  **k**   |  [1.380649 ⋅ 10⁻²³ joules per kelvin](https://en.wikipedia.org/wiki/Boltzmann_constant)  |
+|  **k**   |  ≈[1.38 ⋅ 10⁻²³ joules per kelvin](https://en.wikipedia.org/wiki/Boltzmann_constant)  |
 |   **T**  | [2.725 K](https://bigthink.com/starts-with-a-bang/life-begin-universe-room-temperature/) |
-| **ln(2)**|                                    0.6931471805599453                                    |
+| **ln(2)**|                                   ≈ 0.693                                                |
 
 Each time you want to try a new key you have to erase about half the bits you were
 using from your last run. For a 256-bit key, that’s going to be on average about
@@ -190,7 +190,7 @@ In total, you’re paying that very small thermodynamic tax 2²⁶³ times — o
 (Could you cool the computer to a nanokelvin? Sure, but then you’re paying more tax to
 run the heat pump. There is no escaping the universe’s taxman.)
 
-1.380649 joules per kelvin ⋅ 2.725 kelvins ⋅ 10⁻²³ ⋅ 10⁷⁷ ≈ 2.61 ⋅ 10⁵⁴ joules
+≈1.38 joules per kelvin ⋅ 2.725 kelvins ⋅ 0.693 ⋅ 10⁻²³ ⋅ 10⁷⁷ ≈ 2.61 ⋅ 10⁵⁴ joules
 
 The largest energy unit I’m familiar with is the foe, which represents the average
 energy liberated in a supernova explosion. One foe is 10⁴⁴ joules.
@@ -206,8 +206,12 @@ Second Law of Thermodynamics.
 ### … aren’t you worried about quantum computers?
 
 If it ever becomes possible to build a large-scale quantum computer, it will be
-able to brute-force a 256-bit key in only roughly 2¹²⁸ attempts. I invite you to
-repeat the classical computer analysis for a quantum computer running
+able to brute-force a 256-bit key in only roughly 2¹²⁸ attempts.
+
+(Kind of. I’m using a very rough rule of thumb. The real analysis is considerably
+more involved.)
+
+I invite you to repeat the classical computer analysis for a quantum computer running
 [Grover’s algorithm](https://en.wikipedia.org/wiki/Grover%27s_algorithm). It is true
 it requires much less energy to be liberated as heat, but the levels are still
 unimaginably large.
