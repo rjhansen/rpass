@@ -55,10 +55,16 @@ impl PasswordGenerator {
     pub fn new_from_args(args: &Args) -> Self {
         let mut generator = Self {
             password_length: args.length.unwrap_or(8) as usize,
-            csprng: ChaCha20Rng::try_from_rng(&mut SysRng).unwrap_or_else(|_| {
-                eprintln!("error: could not initialize random number generator!");
-                exit(1);
-            }),
+            csprng: match ChaCha20Rng::try_from_rng(&mut SysRng) {
+                Ok(rng) => rng,
+                Err(e) => {
+                    eprintln!("error: could not initialize random number generator!");
+                    eprintln!("error: this should never happen, but it just did.");
+                    eprintln!("error: definitely a bug -- please report it.");
+                    eprintln!("error: underlying cause -- {}", e);
+                    exit(1);
+                }
+            },
             char_buf: ['\0'; 0x4000],
             cbindex: 0,
             ensure_capitals: args.ensure_capitals,
@@ -74,18 +80,15 @@ impl PasswordGenerator {
             generator.remove_set.insert(ch);
         }
         {
-            let syms = &*SYMBOLS;
-            let nums = &*NUMBERS;
-            let caps = &*CAPITALS;
-            if generator.ensure_symbols && syms.iter().all(|c| !generator.filter(c)) {
+            if generator.ensure_symbols && (&*SYMBOLS).iter().all(|c| !generator.filter(c)) {
                 eprintln!("error: symbols are required, but all were excluded");
                 exit(1);
             }
-            if generator.ensure_numbers && nums.iter().all(|c| !generator.filter(c)) {
+            if generator.ensure_numbers && (&*NUMBERS).iter().all(|c| !generator.filter(c)) {
                 eprintln!("error: numbers are required, but all were excluded");
                 exit(1);
             }
-            if generator.ensure_capitals && caps.iter().all(|c| !generator.filter(c)) {
+            if generator.ensure_capitals && (&*CAPITALS).iter().all(|c| !generator.filter(c)) {
                 eprintln!("error: capitals are required, but all were excluded");
                 exit(1);
             }
@@ -123,7 +126,15 @@ impl PasswordGenerator {
         byte_buf.zeroize();
         let mut iter = tmp_str.chars();
         for index in 0..0x4000 {
-            self.char_buf[index] = iter.next().expect("char buffer exhausted");
+            self.char_buf[index] = match iter.next() {
+                Some(ch) => ch,
+                None => {
+                    eprintln!("error: weird, this should never happen, but it just did.");
+                    eprintln!("error: ran out of random data while replenishing pool");
+                    eprintln!("error: definitely a bug -- please report it!");
+                    exit(1);
+                }
+            };
         }
         tmp_str.zeroize();
     }
@@ -141,18 +152,15 @@ impl PasswordGenerator {
         // three positions will be distinct and randomly selected.
 
         if self.ensure_symbols {
-            let symvec = &*SYMBOLS;
-            let cands: Vec<&char> = symvec.iter().filter(|c| self.filter(c)).collect();
+            let cands: Vec<&char> = (&*SYMBOLS).iter().filter(|c| self.filter(c)).collect();
             buf[indices[0]] = *cands[self.csprng.random_range(0..cands.len())];
         }
         if self.ensure_capitals {
-            let capvec = &*CAPITALS;
-            let cands: Vec<&char> = capvec.iter().filter(|c| self.filter(c)).collect();
+            let cands: Vec<&char> = (&*CAPITALS).iter().filter(|c| self.filter(c)).collect();
             buf[indices[1]] = *cands[self.csprng.random_range(0..cands.len())];
         }
         if self.ensure_numbers {
-            let numvec = &*NUMBERS;
-            let cands: Vec<&char> = numvec.iter().filter(|c| self.filter(c)).collect();
+            let cands: Vec<&char> = (&*NUMBERS).iter().filter(|c| self.filter(c)).collect();
             buf[indices[2]] = *cands[self.csprng.random_range(0..cands.len())];
         }
         indices.zeroize();
