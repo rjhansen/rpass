@@ -1,0 +1,65 @@
+# Jekyll + Minimal Mistakes configuration for the rpass documentation site.
+# Built and deployed by ../.github/workflows/pages.yml (GitHub Actions), not
+# GitHub's legacy branch-based Pages build.
+
+title: "rpass"
+subtitle: "…because random passwords shouldn't be left to chance."
+description: "Documentation for rpass, a cryptographically secure command-line password generator."
+url: "https://rjhansen.github.io"
+baseurl: "/rpass"
+repository: "rjhansen/rpass"
+logo:
+
+locale: "en-US"
+minimal_mistakes_skin: "default"
+
+theme: minimal-mistakes-jekyll
+
+markdown: kramdown
+highlighter: rouge
+
+collections:
+  pages:
+    output: true
+    permalink: /:path/
+
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: single
+      author_profile: false
+      sidebar:
+        nav: "main"
+      toc: true
+      toc_sticky: true
+  - scope:
+      path: ""
+    values:
+      layout: single
+      author_profile: false
+      sidebar:
+        nav: "main"
+
+author:
+  name: "Robert J. Hansen"
+  links:
+    - label: "GitHub"
+      icon: "fab fa-fw fa-github"
+      url: "https://github.com/rjhansen/rpass"
+
+footer:
+  links:
+    - label: "GitHub"
+      icon: "fab fa-fw fa-github"
+      url: "https://github.com/rjhansen/rpass"
+
+plugins:
+  - jekyll-include-cache
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - vendor

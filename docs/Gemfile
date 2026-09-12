@@ -1,0 +1,12 @@
+source "https://rubygems.org"
+
+gem "jekyll", "~> 4.3"
+gem "minimal-mistakes-jekyll", "~> 4.26"
+gem "webrick", "~> 1.8"
+
+group :jekyll_plugins do
+  gem "jekyll-include-cache"
+end
+
+# Windows/JRuby users: harmless no-op elsewhere.
+gem "wdm", "~> 0.1.1", platforms: [:mingw, :x64_mingw, :mswin]
