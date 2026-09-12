@@ -5,7 +5,3 @@ main:
     url: /installation/
   - title: "Usage"
     url: /usage/
-  - title: "Security Analysis"
-    url: /security/
-  - title: "Efficiency Analysis"
-    url: /efficiency/
