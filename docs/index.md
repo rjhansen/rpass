@@ -29,8 +29,8 @@ successor to Ted Ts'o's `pwgen`, keeping the command-line ergonomics
 sysadmins already know while replacing the underlying cryptography and
 entropy guarantees with something suited to today's threat environment.
 
-- [**Installation**](/installation/) — build from source with `cargo`.
-- [**Usage**](/usage/) — the full flag reference, quickstart examples, and answers to "why does it work this way?"
+- [**Installation**]({{ '/installation/' | relative_url }}) — build from source with `cargo`.
+- [**Usage**]({{ '/usage/' | relative_url }}) — the full flag reference, quickstart examples, and answers to "why does it work this way?"
 
 ## Quickstart
 
@@ -48,5 +48,5 @@ oOXCufI9DcdjyXsf
 ```
 
 `rpass` by itself generates twenty lines of columnar eight-character
-passwords; `rpass -1` generates just one. See the [usage guide](/usage/) for
+passwords; `rpass -1` generates just one. See the [usage guide]({{ '/usage/' | relative_url }}) for
 every flag.

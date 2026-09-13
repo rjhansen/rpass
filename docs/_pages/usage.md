@@ -241,6 +241,3 @@ Each password from `rpass` contains six bits of entropy per glyph. See the
 preceding section(s) for warnings about how certain flags can undercut this
 promise.
 
-For the mechanics of how that guarantee is implemented — CSPRNG choice,
-buffer sizing, zeroization — see the [security analysis](/security/) and
-[efficiency analysis](/efficiency/).

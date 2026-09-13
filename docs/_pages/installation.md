@@ -25,5 +25,5 @@ following:
 $ cargo install --git https://github.com/rjhansen/rpass
 ```
 
-Next: read the [usage guide](/usage/) for the full flag reference and a
+Next: read the [usage guide]({{ '/usage/' | relative_url }}) for the full flag reference and a
 quickstart.
