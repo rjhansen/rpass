@@ -6,8 +6,8 @@ excerpt: "Building and installing rpass from source."
 
 ## Supported systems
 
-* Apple macOS (tested on an M4 MacBook Pro running macOS 26.5.1 (Tahoe))
-* Linux (tested on an x86_64 machine running Fedora 43)
+* Apple macOS (tested on an M4 MacBook Pro running macOS 26.6.2 (Tahoe))
+* Linux (tested on an x86_64 machine running Fedora 44)
 * Windows (tested on an x86_64 machine running Windows 11)
 
 ## Intended audience
