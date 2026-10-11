@@ -12,7 +12,7 @@ header:
       url: https://github.com/rjhansen/rpass
 feature_row:
   - title: "Cryptographically secure"
-    excerpt: "Every password is drawn from a ChaCha20-based CSPRNG, with six bits of entropy guaranteed per glyph."
+    excerpt: "Every password is drawn from a ChaCha20-based CSPRNG, with six bits of entropy per glyph by default."
   - title: "Aggressive zeroization"
     excerpt: "Sensitive buffers — random bytes, intermediate strings, and printed passwords — are zeroized as soon as they're no longer needed."
   - title: "Drop-in for pwgen"
@@ -31,6 +31,8 @@ entropy guarantees with something suited to today's threat environment.
 
 - [**Installation**]({{ '/installation/' | relative_url }}) — build from source with `cargo`.
 - [**Usage**]({{ '/usage/' | relative_url }}) — the full flag reference, quickstart examples, and answers to "why does it work this way?"
+- [**Security**]({{ '/security/' | relative_url }}) — some remarks on code security.
+
 
 ## Quickstart
 
