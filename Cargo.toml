@@ -12,9 +12,9 @@ exclude = [
 ]
 
 [dependencies]
-rand = "0.10.0"
+rand = "0.10.3"
 base64 = "0.22.1"
-chacha20 = { version = "0.10.0", default-features = false, features = ["rng", "zeroize"] }
+chacha20 = { version = "0.10.2", default-features = false, features = ["rng", "zeroize"] }
 clap = { version = "4.5.60", features = ["derive"] }
 zeroize = "1.8.2"
 terminal_size = "0.4.3"
