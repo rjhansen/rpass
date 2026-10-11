@@ -5,3 +5,5 @@ main:
     url: /installation/
   - title: "Usage"
     url: /usage/
+  - title: "Security"
+    url: /security/
