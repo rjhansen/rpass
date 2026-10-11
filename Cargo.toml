@@ -33,12 +33,10 @@ strip = true
 [[bin]]
 name = "rpass"
 path = "src/main.rs"
-test = false
 doctest = false
 bench = false
 doc = false
 proc-macro = false
-harness = false
 required-features = []
 
 # extra clippy lints
