@@ -151,6 +151,11 @@ A few of these flags deserve special comment.
   would the output possess then? Removing twenty-six glyphs from the base64 output
   would leave us with 38 different symbols, for about 5.25 bits of entropy per
   glyph — significantly below our six bits per glyph guarantee!
+* `rpass` refuses to generate a password with fewer than 36 bits of entropy,
+  which is what the shortest allowed length gives when nothing is excluded.
+  Every exclusion (`-A`, `-0`, `-B`, `-v`, `-r`) shrinks the set of glyphs to
+  choose from, so the more you exclude, the longer `LENGTH` must be. The error
+  message will tell you the minimum length for the exclusions you asked for.
 * `LENGTH` must be in the range [6, 43] inclusive.
 * `COUNT` must be in the range [1, 10000] inclusive.
 

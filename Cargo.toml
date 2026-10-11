@@ -14,19 +14,20 @@ exclude = [
 [dependencies]
 rand = "0.10.0"
 base64 = "0.22.1"
-rand_chacha = "0.10.0"
+chacha20 = { version = "0.10.0", default-features = false, features = ["rng", "zeroize"] }
 clap = { version = "4.5.60", features = ["derive"] }
 zeroize = "1.8.2"
 terminal_size = "0.4.3"
 
 [target.'cfg(target_family="unix")'.dependencies]
-rustix = { version = "1.1.4", features = ["stdio"] }
+rustix = { version = "1.1.4", features = ["process", "stdio"] }
+libc = "0.2.183"
 
 [profile.release]
 opt-level = "z"
 lto = true
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 strip = true
 
 [[bin]]
@@ -84,7 +85,7 @@ filter_map_next = "warn"
 flat_map_option = "warn"
 format_collect = "warn"
 format_push_string = "warn"
-from_iter_instead_of_collect = "warn"
+# from_iter_instead_of_collect = "warn"
 get_unwrap = "warn"
 if_not_else = "warn"
 if_then_some_else_none = "warn"

@@ -1,16 +1,12 @@
-//! Implements closures that abstract away all the messy details of safely
-//! generating passwords.
-
-use crate::cmdline::{Args, MAX_PASSWORD_LENGTH, parse_command_line};
+use crate::cmdline::{Args, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, parse_command_line};
 use base64::engine::{GeneralPurpose, general_purpose};
 use base64::{Engine, alphabet};
+use chacha20::ChaCha20Rng;
 use rand::rngs::SysRng;
-use rand::{Rng, RngExt, SeedableRng, seq::SliceRandom};
-use rand_chacha::ChaCha20Rng;
+use rand::{Rng, RngExt, SeedableRng, TryRng, seq::SliceRandom};
 use std::collections::HashSet;
-use std::process::exit;
 use std::sync::LazyLock;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 const B64: GeneralPurpose = GeneralPurpose::new(&alphabet::STANDARD, general_purpose::NO_PAD);
 static SYMBOLS: LazyLock<Vec<char>> =
@@ -20,6 +16,15 @@ static CAPITALS: LazyLock<Vec<char>> =
 static NUMBERS: LazyLock<Vec<char>> = LazyLock::new(|| "0123456789".chars().collect());
 static VOWELS: LazyLock<HashSet<char>> = LazyLock::new(|| "aeiouAEIOU".chars().collect());
 static AMBIGUOUS: LazyLock<HashSet<char>> = LazyLock::new(|| "B8G6I1l0OQDS5Z2".chars().collect());
+const MIN_ENTROPY_BITS: u32 = 6 * MIN_PASSWORD_LENGTH as u32;
+
+/// Returns the shortest password length that reaches `MIN_ENTROPY_BITS`
+/// when each glyph is drawn uniformly from `alphabet_size` candidates.
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
+fn min_length_for(alphabet_size: usize) -> usize {
+    (((MIN_ENTROPY_BITS as f32) / (alphabet_size as f32).log2()).ceil()) as usize
+}
 
 /// Encapsulates all data needed to generate passwords.
 pub struct PasswordGenerator {
@@ -35,6 +40,26 @@ pub struct PasswordGenerator {
     no_numbers: bool,
     no_ambiguous: bool,
     no_vowels: bool,
+    valid_symbols: Vec<char>,
+    valid_capitals: Vec<char>,
+    valid_numbers: Vec<char>,
+}
+
+/// Seeds a ChaCha20 CSPRNG from the system RNG. The seed is the CSPRNG's
+/// key, so it's held in a `Zeroizing` wrapper that wipes it on every way
+/// out of this function. The CSPRNG zeroizes its own state on drop
+/// (`chacha20`'s `zeroize` feature).
+fn new_csprng() -> Result<ChaCha20Rng, String> {
+    let mut seed = Zeroizing::new([0u8; 32]);
+    if let Err(e) = SysRng.try_fill_bytes(seed.as_mut_slice()) {
+        return Err(format!(
+            "Could not initialize random number generator! This should never happen,
+but it just did. This is definitely a bug -- please report it.
+
+Underlying cause: {e}"
+        ));
+    }
+    Ok(ChaCha20Rng::from_seed(*seed))
 }
 
 impl Drop for PasswordGenerator {
@@ -44,69 +69,8 @@ impl Drop for PasswordGenerator {
     }
 }
 
-impl Default for PasswordGenerator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PasswordGenerator {
-    /// Creates a new PasswordGenerator object using data from the command line.
-    pub fn new_from_args(args: &Args) -> Self {
-        let mut generator = Self {
-            password_length: args.length.unwrap_or(8) as usize,
-            csprng: match ChaCha20Rng::try_from_rng(&mut SysRng) {
-                Ok(rng) => rng,
-                Err(e) => {
-                    eprintln!("error: could not initialize random number generator!");
-                    eprintln!("error: this should never happen, but it just did.");
-                    eprintln!("error: definitely a bug -- please report it.");
-                    eprintln!("error: underlying cause -- {}", e);
-                    exit(1);
-                }
-            },
-            char_buf: ['\0'; 0x4000],
-            cbindex: 0,
-            ensure_capitals: args.ensure_capitals,
-            ensure_numbers: args.ensure_numbers,
-            ensure_symbols: args.ensure_symbols,
-            remove_set: HashSet::new(),
-            no_capitals: args.no_capitals,
-            no_numbers: args.no_numbers,
-            no_ambiguous: args.no_ambiguous,
-            no_vowels: args.no_vowels,
-        };
-        for ch in args.remove.chars() {
-            generator.remove_set.insert(ch);
-        }
-        {
-            if generator.ensure_symbols && (&*SYMBOLS).iter().all(|c| !generator.filter(c)) {
-                eprintln!("error: symbols are required, but all were excluded");
-                exit(1);
-            }
-            if generator.ensure_numbers && (&*NUMBERS).iter().all(|c| !generator.filter(c)) {
-                eprintln!("error: numbers are required, but all were excluded");
-                exit(1);
-            }
-            if generator.ensure_capitals && (&*CAPITALS).iter().all(|c| !generator.filter(c)) {
-                eprintln!("error: capitals are required, but all were excluded");
-                exit(1);
-            }
-        }
-        let b64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        if b64_chars.chars().all(|c| !generator.filter(&c)) {
-            eprintln!("error: you seem to be excluding the entire set of base64 characters");
-            exit(1);
-        }
-        generator.replenish_pool();
-        generator
-    }
-
-    pub fn new() -> Self {
-        let args = parse_command_line();
-        Self::new_from_args(args)
-    }
-
+    /// IF YOU EDIT THIS, ALSO EDIT _filter BELOW
     fn filter(&self, ch: &char) -> bool {
         !((self.no_capitals && ch.is_ascii_uppercase())
             || (self.no_numbers && ch.is_ascii_digit())
@@ -115,32 +79,100 @@ impl PasswordGenerator {
             || self.remove_set.contains(ch))
     }
 
+    /// Creates a new PasswordGenerator object using data from the command line.
+    pub fn new_from_args(args: &Args) -> Result<Self, String> {
+        let rset: HashSet<char> = args.remove.chars().collect();
+        // IF YOU EDIT THIS, ALSO EDIT filter ABOVE
+        let local_filter = |ch: &char| {
+            !((args.no_capitals && ch.is_ascii_uppercase())
+                || (args.no_numbers && ch.is_ascii_digit())
+                || (args.no_vowels && VOWELS.contains(ch))
+                || (args.no_ambiguous && AMBIGUOUS.contains(ch))
+                || rset.contains(ch))
+        };
+
+        let mut generator = Self {
+            password_length: args.length.unwrap_or(8) as usize,
+            csprng: new_csprng()?,
+            char_buf: ['\0'; 0x4000],
+            cbindex: 0,
+            ensure_capitals: args.ensure_capitals,
+            ensure_numbers: args.ensure_numbers,
+            ensure_symbols: args.ensure_symbols,
+            remove_set: args.remove.chars().collect(),
+            no_capitals: args.no_capitals,
+            no_numbers: args.no_numbers,
+            no_ambiguous: args.no_ambiguous,
+            no_vowels: args.no_vowels,
+            valid_symbols: (*SYMBOLS)
+                .iter()
+                .filter(|c| local_filter(c))
+                .copied()
+                .collect(),
+            valid_capitals: (*CAPITALS)
+                .iter()
+                .filter(|c| local_filter(c))
+                .copied()
+                .collect(),
+            valid_numbers: (*NUMBERS)
+                .iter()
+                .filter(|c| local_filter(c))
+                .copied()
+                .collect(),
+        };
+
+        if generator.ensure_symbols && generator.valid_symbols.is_empty() {
+            return Err("symbols are required, but all were excluded".into());
+        }
+        if generator.ensure_numbers && generator.valid_numbers.is_empty() {
+            return Err("numbers are required, but all were excluded".into());
+        }
+        if generator.ensure_capitals && generator.valid_capitals.is_empty() {
+            return Err("capitals are required, but all were excluded".into());
+        }
+        let b64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let alphabet_size = b64_chars.chars().filter(|c| generator.filter(c)).count();
+        if alphabet_size == 0 {
+            return Err("you seem to be excluding the entire set of base64 characters".into());
+        }
+        if min_length_for(alphabet_size) > generator.password_length {
+            return Err(
+                "the reduced alphabet, combined with this size of generated password, would
+fail to meet the entropy guarantee of 36 bits."
+                    .into(),
+            );
+        }
+        generator.replenish_pool();
+        Ok(generator)
+    }
+
+    /// Creates a new PasswordGenerator object from the process's command line.
+    pub fn new() -> Result<Self, String> {
+        let args = parse_command_line();
+        Self::new_from_args(args)
+    }
+
     fn replenish_pool(&mut self) {
-        let mut byte_buf = [0u8; 12288];
+        // Zeroizing wipes these on drop, so they're cleaned up even if we
+        // leave this function by panicking.
+        let mut byte_buf = Zeroizing::new([0u8; 12288]);
         // This should be unnecessary, as we zeroize sensitive memory
         // as it's used. Still, belt and suspenders engineering…
         self.char_buf.zeroize();
         self.cbindex = 0;
-        self.csprng.fill_bytes(&mut byte_buf);
-        let mut tmp_str = B64.encode(byte_buf);
-        byte_buf.zeroize();
-        let mut iter = tmp_str.chars();
-        for index in 0..0x4000 {
-            self.char_buf[index] = match iter.next() {
-                Some(ch) => ch,
-                None => {
-                    eprintln!("error: weird, this should never happen, but it just did.");
-                    eprintln!("error: ran out of random data while replenishing pool");
-                    eprintln!("error: definitely a bug -- please report it!");
-                    exit(1);
-                }
-            };
+        self.csprng.fill_bytes(byte_buf.as_mut_slice());
+        // Encode from a slice: passing the array itself would hand `encode`
+        // a copy that never gets zeroized.
+        let tmp_str = Zeroizing::new(B64.encode(byte_buf.as_slice()));
+        // 12288 bytes always encode to exactly 0x4000 unpadded base64 glyphs.
+        for (slot, byte) in self.char_buf.iter_mut().zip(tmp_str.bytes()) {
+            *slot = char::from(byte);
         }
-        tmp_str.zeroize();
     }
 
     fn satisfy_policies(&mut self, buf: &mut [char]) {
-        let mut indices: Vec<usize> = (0..self.password_length).collect();
+        let mut indices: Zeroizing<Vec<usize>> =
+            Zeroizing::new((0..self.password_length).collect());
         indices.shuffle(&mut self.csprng);
 
         // indices[0] = what pos to use for symbol replacement
@@ -152,27 +184,25 @@ impl PasswordGenerator {
         // three positions will be distinct and randomly selected.
 
         if self.ensure_symbols {
-            let cands: Vec<&char> = (&*SYMBOLS).iter().filter(|c| self.filter(c)).collect();
-            buf[indices[0]] = *cands[self.csprng.random_range(0..cands.len())];
+            buf[indices[0]] =
+                self.valid_symbols[self.csprng.random_range(0..self.valid_symbols.len())];
         }
         if self.ensure_capitals {
-            let cands: Vec<&char> = (&*CAPITALS).iter().filter(|c| self.filter(c)).collect();
-            buf[indices[1]] = *cands[self.csprng.random_range(0..cands.len())];
+            buf[indices[1]] =
+                self.valid_capitals[self.csprng.random_range(0..self.valid_capitals.len())];
         }
         if self.ensure_numbers {
-            let cands: Vec<&char> = (&*NUMBERS).iter().filter(|c| self.filter(c)).collect();
-            buf[indices[2]] = *cands[self.csprng.random_range(0..cands.len())];
+            buf[indices[2]] =
+                self.valid_numbers[self.csprng.random_range(0..self.valid_numbers.len())];
         }
-        indices.zeroize();
     }
 
     /// Generates a single policy conforming to what’s specified on the
     /// command line.
     #[allow(clippy::needless_range_loop)]
-    pub fn generate(&mut self) -> String {
-        let mut buf = ['\0'; MAX_PASSWORD_LENGTH as usize];
-        let mut password = String::new();
-        password.reserve(self.password_length);
+    pub fn generate(&mut self) -> Zeroizing<String> {
+        let mut buf = Zeroizing::new(['\0'; MAX_PASSWORD_LENGTH as usize]);
+        let mut password = Zeroizing::new(String::with_capacity(self.password_length));
         for index in 0..self.password_length {
             loop {
                 if self.cbindex >= 0x4000 {
@@ -192,7 +222,6 @@ impl PasswordGenerator {
         for index in 0..self.password_length {
             password.push(buf[index]);
         }
-        buf.zeroize();
         password
     }
 }
