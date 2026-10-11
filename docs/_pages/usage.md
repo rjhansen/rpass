@@ -238,6 +238,6 @@ pipelines that use `pwgen`, but it's a no-op.
 
 ## Entropy guarantee
 
-Each password from `rpass` contains six bits of entropy per glyph. See the
-preceding section(s) for warnings about how certain flags can undercut this
-promise.
+By default, each password from `rpass` contains six bits of entropy per glyph.
+See the preceding section(s) for warnings about how certain flags can undercut
+this promise.
