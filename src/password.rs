@@ -26,6 +26,45 @@ fn min_length_for(alphabet_size: usize) -> usize {
     (((MIN_ENTROPY_BITS as f32) / (alphabet_size as f32).log2()).ceil()) as usize
 }
 
+/// Which glyphs the user has ruled out.
+struct Exclusions {
+    no_capitals: bool,
+    no_numbers: bool,
+    no_vowels: bool,
+    no_ambiguous: bool,
+    removed: HashSet<char>,
+}
+
+impl Exclusions {
+    fn from_args(args: &Args) -> Self {
+        Self {
+            no_capitals: args.no_capitals,
+            no_numbers: args.no_numbers,
+            no_vowels: args.no_vowels,
+            no_ambiguous: args.no_ambiguous,
+            removed: args.remove.chars().collect(),
+        }
+    }
+
+    /// Returns whether `ch` may appear in a password.
+    fn allows(&self, ch: &char) -> bool {
+        !((self.no_capitals && ch.is_ascii_uppercase())
+            || (self.no_numbers && ch.is_ascii_digit())
+            || (self.no_vowels && VOWELS.contains(ch))
+            || (self.no_ambiguous && AMBIGUOUS.contains(ch))
+            || self.removed.contains(ch))
+    }
+
+    /// Returns the members of `candidates` that may appear in a password.
+    fn allowed_from(&self, candidates: &[char]) -> Vec<char> {
+        candidates
+            .iter()
+            .copied()
+            .filter(|ch| self.allows(ch))
+            .collect()
+    }
+}
+
 /// Encapsulates all data needed to generate passwords.
 pub struct PasswordGenerator {
     password_length: usize,
@@ -35,11 +74,7 @@ pub struct PasswordGenerator {
     ensure_symbols: bool,
     ensure_capitals: bool,
     ensure_numbers: bool,
-    remove_set: HashSet<char>,
-    no_capitals: bool,
-    no_numbers: bool,
-    no_ambiguous: bool,
-    no_vowels: bool,
+    exclusions: Exclusions,
     valid_symbols: Vec<char>,
     valid_capitals: Vec<char>,
     valid_numbers: Vec<char>,
@@ -70,26 +105,9 @@ impl Drop for PasswordGenerator {
 }
 
 impl PasswordGenerator {
-    /// IF YOU EDIT THIS, ALSO EDIT _filter BELOW
-    fn filter(&self, ch: &char) -> bool {
-        !((self.no_capitals && ch.is_ascii_uppercase())
-            || (self.no_numbers && ch.is_ascii_digit())
-            || (self.no_vowels && VOWELS.contains(ch))
-            || (self.no_ambiguous && AMBIGUOUS.contains(ch))
-            || self.remove_set.contains(ch))
-    }
-
     /// Creates a new PasswordGenerator object using data from the command line.
     pub fn new_from_args(args: &Args) -> Result<Self, String> {
-        let rset: HashSet<char> = args.remove.chars().collect();
-        // IF YOU EDIT THIS, ALSO EDIT filter ABOVE
-        let local_filter = |ch: &char| {
-            !((args.no_capitals && ch.is_ascii_uppercase())
-                || (args.no_numbers && ch.is_ascii_digit())
-                || (args.no_vowels && VOWELS.contains(ch))
-                || (args.no_ambiguous && AMBIGUOUS.contains(ch))
-                || rset.contains(ch))
-        };
+        let exclusions = Exclusions::from_args(args);
 
         let mut generator = Self {
             password_length: args.length.unwrap_or(8) as usize,
@@ -99,26 +117,10 @@ impl PasswordGenerator {
             ensure_capitals: args.ensure_capitals,
             ensure_numbers: args.ensure_numbers,
             ensure_symbols: args.ensure_symbols,
-            remove_set: args.remove.chars().collect(),
-            no_capitals: args.no_capitals,
-            no_numbers: args.no_numbers,
-            no_ambiguous: args.no_ambiguous,
-            no_vowels: args.no_vowels,
-            valid_symbols: (*SYMBOLS)
-                .iter()
-                .filter(|c| local_filter(c))
-                .copied()
-                .collect(),
-            valid_capitals: (*CAPITALS)
-                .iter()
-                .filter(|c| local_filter(c))
-                .copied()
-                .collect(),
-            valid_numbers: (*NUMBERS)
-                .iter()
-                .filter(|c| local_filter(c))
-                .copied()
-                .collect(),
+            valid_symbols: exclusions.allowed_from(&SYMBOLS),
+            valid_capitals: exclusions.allowed_from(&CAPITALS),
+            valid_numbers: exclusions.allowed_from(&NUMBERS),
+            exclusions,
         };
 
         if generator.ensure_symbols && generator.valid_symbols.is_empty() {
@@ -131,7 +133,10 @@ impl PasswordGenerator {
             return Err("capitals are required, but all were excluded".into());
         }
         let b64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let alphabet_size = b64_chars.chars().filter(|c| generator.filter(c)).count();
+        let alphabet_size = b64_chars
+            .chars()
+            .filter(|c| generator.exclusions.allows(c))
+            .count();
         if alphabet_size == 0 {
             return Err("you seem to be excluding the entire set of base64 characters".into());
         }
@@ -211,7 +216,7 @@ fail to meet the entropy guarantee of 36 bits."
                 let mut ch = self.char_buf[self.cbindex];
                 self.char_buf[self.cbindex].zeroize();
                 self.cbindex += 1;
-                if self.filter(&ch) {
+                if self.exclusions.allows(&ch) {
                     buf[index] = ch;
                     break;
                 }

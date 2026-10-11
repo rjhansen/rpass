@@ -119,9 +119,6 @@ A few of these flags deserve special comment.
 * Technically, `-C` is a no-op because that's the default behavior anyway.
   However, `pwgen` works this way, so we do too in the interests of being a
   drop-in replacement.
-* `pwgen`'s `-H` flag is not supported and **will not be** supported (not by
-  me, at least). It was borderline-foolish even when Ted first wrote
-  `pwgen`, and in today's threat environment it's genuinely foolish.
 * Using `-r` will invalidate our "six bits per glyph!" entropy guarantee. In
   fact, unwise use of `-r` can drop the entropy per glyph to dangerously low
   levels. To see what is meant by that, consider what would happen if one
@@ -133,13 +130,24 @@ A few of these flags deserve special comment.
 * `rpass` refuses to generate a password with fewer than 36 bits of entropy,
   which is what the shortest allowed length gives when nothing is excluded.
   Every exclusion (`-A`, `-0`, `-B`, `-v`, `-r`) shrinks the set of glyphs
-  to choose from, so the more you exclude, the longer `LENGTH` must be. The
-  error message will tell you the minimum length for the exclusions you
-  asked for.
+  to choose from, so the more you exclude, the longer `LENGTH` must be.
 * `LENGTH` must be in the range [6, 43] inclusive.
 * `COUNT` must be in the range [1, 10000] inclusive.
 
 ## Why…
+
+### … don't you support `pwgen`'s `-H` flag?
+
+`-H` allowed a `pwgen` user to provide a filename (and optionally a seed
+value), using that file to generate a SHA-1 hash. That and the seed would be
+used for random-*ish* number generation. It was the worst of both worlds
+even pre-Y2K: you gave up the ease of remembering a phonetic password but
+didn't have the entropic strength of a real CSPRNG-generated password. It
+was borderline-foolish even back then, and in 2026 it would be foolish to
+include it.
+
+`pwgen`'s `-H` flag is not supported and **will not be** supported (not by
+me, at least).
 
 ### … is there a cap on how many passwords can be generated?
 
@@ -216,19 +224,6 @@ cipher.
 `-s` is included as a command line flag so as to not break existing
 pipelines that use `pwgen`, but it's a no-op.
 
-### … won't `-H` be supported?
-
-`-H` allowed a `pwgen` user to provide a filename (and optionally a seed
-value), using that file to generate a SHA-1 hash. That and the seed would be
-used for random-*ish* number generation. It was the worst of both worlds
-even pre-Y2K: you gave up the ease of remembering a phonetic password but
-didn't have the entropic strength of a real CSPRNG-generated password. It
-was borderline-foolish even back then, and in 2026 it would be foolish to
-include it.
-
-`-H` is included as a command line flag so as to not break existing
-pipelines that use `pwgen`, but it's a no-op.
-
 ## Keylengths and entropy
 
 | Desired entropy | Minimum password length |
@@ -246,4 +241,3 @@ pipelines that use `pwgen`, but it's a no-op.
 Each password from `rpass` contains six bits of entropy per glyph. See the
 preceding section(s) for warnings about how certain flags can undercut this
 promise.
-

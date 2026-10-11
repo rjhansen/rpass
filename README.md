@@ -154,8 +154,7 @@ A few of these flags deserve special comment.
 * `rpass` refuses to generate a password with fewer than 36 bits of entropy,
   which is what the shortest allowed length gives when nothing is excluded.
   Every exclusion (`-A`, `-0`, `-B`, `-v`, `-r`) shrinks the set of glyphs to
-  choose from, so the more you exclude, the longer `LENGTH` must be. The error
-  message will tell you the minimum length for the exclusions you asked for.
+  choose from, so the more you exclude, the longer `LENGTH` must be.
 * `LENGTH` must be in the range [6, 43] inclusive.
 * `COUNT` must be in the range [1, 10000] inclusive.
 
@@ -241,9 +240,6 @@ gave up the ease of remembering a phonetic password but didn’t have the entrop
 strength of a real CSPRNG-generated password. It was borderline-foolish even back
 then, and in 2026 it would be foolish to include it.
 
-`-H` is included as a command line flag so as to not break existing pipelines that
-use `pwgen`, but it’s a no-op.
-
 ## Keylengths and Entropy
 
 | Desired entropy | Minimum password length |
@@ -258,8 +254,9 @@ use `pwgen`, but it’s a no-op.
 
 ## Entropy guarantee
 
-Each password from `rpass` contains six bits of entropy per glyph. See the
-preceding section(s) for warnings about how certain flags can undercut this promise.
+By default, each password from `rpass` contains six bits of entropy per
+glyph. See the preceding section(s) for warnings about how certain flags
+can undercut this promise.
 
 ## How does it work?
 
